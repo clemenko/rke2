@@ -1,0 +1,255 @@
+#!/bin/bash
+###################################
+# edit vars
+###################################
+set -e
+num=3
+prefix=rancher
+password=Pa22word
+zone=nyc1
+size=s-4vcpu-8gb
+key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
+domain=dockr.life
+
+#image=rancheros
+image=centos-7-x64
+
+#stackrox
+stackrox_lic="stackrox.lic"
+export REGISTRY_USERNAME=andy@stackrox.com
+#REGISTRY_PASSWORD=
+
+######  NO MOAR EDITS #######
+################################# up ################################
+RED=$(tput setaf 1)
+GREEN=$(tput setaf 2)
+NORMAL=$(tput sgr0)
+
+if [ "$image" = rancheros ]; then user=rancher; else user=root; fi
+
+#better error checking
+command -v curl >/dev/null 2>&1 || { echo "$RED" " ** Curl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo "$RED" " ** Jq was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
+command -v pdsh >/dev/null 2>&1 || { echo "$RED" " ** Pdsh was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
+command -v uuid >/dev/null 2>&1 || { echo "$RED" " ** Uuid was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
+
+function up () {
+export PDSH_RCMD_TYPE=ssh
+build_list=""
+uuid=""
+for i in $(seq 1 $num); do
+ uuid=$(uuid -v4| awk -F"-" '{print $4}')
+ build_list="$prefix-$uuid $build_list"
+done
+echo -n " building vms - $build_list "
+doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --tag-name k8s:worker --wait > /dev/null 2>&1
+doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'> hosts.txt
+
+echo "$GREEN" "[ok]" "$NORMAL"
+
+echo -n " checking for ssh "
+for ext in $(awk '{print $1}' hosts.txt); do
+  until [ $(ssh -o ConnectTimeout=1 $user@$ext 'exit' 2>&1 | grep 'timed out\|refused' | wc -l) = 0 ]; do echo -n "." ; sleep 5; done
+done
+echo "$GREEN" "[ok]" "$NORMAL"
+
+host_list=$(awk '{printf $1","}' hosts.txt|sed 's/,$//')
+server=$(sed -n 1p hosts.txt|awk '{print $1}')
+worker=$(sed -n 2p hosts.txt|awk '{printf $1}')
+
+echo -n " updating dns"
+doctl compute domain records create $domain --record-type A --record-name rancher --record-ttl 300 --record-data $server > /dev/null 2>&1
+#doctl compute domain records create $domain --record-type A --record-name app --record-ttl 150 --record-data $worker > /dev/null 2>&1
+#doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data app.$domain. > /dev/null 2>&1
+echo "$GREEN" "[ok]" "$NORMAL"
+
+if [[ "$image" == *"centos"* ]]; then
+  echo -n " updating the os and installing docker "
+  pdsh -l $user -w $host_list 'setenforce 0; sed -i s/best=True/best=False/g /etc/dnf/dnf.conf; yum update-y; yum install -y yum-utils; yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo; yum install docker-ce -y; systemctl start docker; systemctl enable docker' > /dev/null 2>&1
+  echo "$GREEN" "[ok]" "$NORMAL"
+
+  echo -n " updating kernel settings "
+  pdsh -l $user -w $host_list 'cat << EOF >> /etc/sysctl.conf
+# SWAP settings
+vm.swappiness=0
+vm.overcommit_memory=1
+
+# Have a larger connection range available
+net.ipv4.ip_local_port_range=1024 65000
+
+# Increase max connection
+net.core.somaxconn = 10000
+
+# Reuse closed sockets faster
+net.ipv4.tcp_tw_reuse=1
+net.ipv4.tcp_fin_timeout=15
+
+# The maximum number of "backlogged sockets".  Default is 128.
+net.core.somaxconn=4096
+net.core.netdev_max_backlog=4096
+
+# 16MB per socket - which sounds like a lot,
+# but will virtually never consume that much.
+net.core.rmem_max=16777216
+net.core.wmem_max=16777216
+
+# Various network tunables
+net.ipv4.tcp_max_syn_backlog=20480
+net.ipv4.tcp_max_tw_buckets=400000
+net.ipv4.tcp_no_metrics_save=1
+net.ipv4.tcp_rmem=4096 87380 16777216
+net.ipv4.tcp_syn_retries=2
+net.ipv4.tcp_synack_retries=2
+net.ipv4.tcp_wmem=4096 65536 16777216
+
+# ARP cache settings for a highly loaded docker swarm
+net.ipv4.neigh.default.gc_thresh1=8096
+net.ipv4.neigh.default.gc_thresh2=12288
+net.ipv4.neigh.default.gc_thresh3=16384
+
+# ip_forward and tcp keepalive for iptables
+net.ipv4.tcp_keepalive_time=600
+net.ipv4.ip_forward=1
+
+# needed for host mountpoints with RHEL 7.4
+fs.may_detach_mounts=1
+
+# monitor file system events
+fs.inotify.max_user_instances=8192
+fs.inotify.max_user_watches=1048576
+EOF
+sysctl -p' > /dev/null 2>&1
+  echo "$GREEN" "[ok]" "$NORMAL"
+
+  echo -n " adding daemon configs "
+  pdsh -l $user -w $host_list 'echo -e "{\n \"selinux-enabled\": false, \n \"log-driver\": \"json-file\", \n \"log-opts\": {\"max-size\": \"10m\", \"max-file\": \"3\"} \n}" > /etc/docker/daemon.json; systemctl restart docker'
+  echo "$GREEN" "[ok]" "$NORMAL"
+fi
+
+if [ "$image" = ubuntu-19-04-x64 ]; then
+ echo -n " updating the os and installing docker "
+ pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; curl -fsSL "'$ee_url'/ubuntu/gpg" | apt-key add -; add-apt-repository "deb '$ee_url'/ubuntu bionic stable"; apt update; apt -y install docker-ee; systemctl start docker; systemctl enable docker; apt autoremove -y ' > /dev/null 2>&1
+ #add-apt-repository "deb '$ee_url'/ubuntu $(lsb_release -cs) stable
+ 
+ echo "$GREEN" "[ok]" "$NORMAL"
+fi
+
+echo -n " starting rancher server "
+server=$(cat hosts.txt|head -1|awk '{print $1}')
+ssh $user@$server "docker run -d -p 80:80 -p 443:443 --restart=unless-stopped rancher/rancher" > /dev/null 2>&1
+
+until curl $server:443 > /dev/null 2>&1; do echo -n .; sleep 2; done
+echo "$GREEN" "[ok]" "$NORMAL"
+
+echo -n " setting up rancher server "
+token=$(curl -sk https://$server/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"admin"}'| jq -r .token)
+curl -sk https://$server/v3/users?action=changepassword -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"currentPassword":"admin","newPassword":"Pa22word"}' > /dev/null 2>&1
+api_token=$(curl -sk https://$server/v3/token -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"token","description":"automation"}' | jq -r .token)
+echo $api_token > api_token
+curl -sk https://$server/v3/settings/server-url -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"name":"server-url","value":"https://'$server'"}' > /dev/null 2>&1
+echo "$GREEN" "[ok]" "$NORMAL"
+
+
+echo -n " attaching agents "
+agent_list=$(sed -n 2,"$num"p hosts.txt|awk '{printf $1","}')
+
+# Create cluster
+clusterid=$(curl -sk https://$server/v3/cluster -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -d '{"type":"cluster","nodes":[],"rancherKubernetesEngineConfig":{"ignoreDockerVersion":true},"name":"rancher"}' | jq -r .id )
+
+# Generate token (clusterRegistrationToken) and extract nodeCommand
+agent_command=$(curl -sk https://$server/v3/clusterregistrationtoken -H 'content-type: application/json' -H "Authorization: Bearer $api_token" --data-binary '{"type":"clusterRegistrationToken","clusterId":"'$clusterid'"}' | jq -r .nodeCommand)
+
+ssh $user@$server "$agent_command --etcd --controlplane --worker" > /dev/null 2>&1
+pdsh -l $user -w $agent_list "$agent_command --worker" > /dev/null 2>&1
+
+echo "$GREEN" "[ok]" "$NORMAL"
+
+echo -n " disable telemetry "
+curl -sk https://$server/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
+echo "$GREEN" "[ok]" "$NORMAL"
+
+config
+
+echo ""
+echo "========= Rancher install complete ========="
+echo ""
+
+status
+}
+
+################################ config ##############################
+function config () {
+  server=$(cat hosts.txt|head -1|awk '{print $1}')
+  api_token=$(cat api_token)
+  clusterid=$(curl -sk https://$server/v3/cluster -H 'content-type: application/json' -H "Authorization: Bearer $api_token" | jq -r .data[].id)
+  curl -sk https://$server/v3/clusters/$clusterid?action=generateKubeconfig -X POST -H 'accept: application/json' -H "Authorization: Bearer $api_token" | jq -r .config > ~/.kube/config
+}
+
+################################ rox ##############################
+function rox () {
+  echo -n " setting up stackrox "
+  if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
+
+  server=$(sed -n 1p hosts.txt|awk '{print $1}')
+
+  roxctl central generate k8s none --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+
+  # move the nodeport to 30200
+  sed -i '' $'s/targetPort: api/targetPort: api\\\n    nodePort: 30200/g' central-bundle/central/loadbalancer.yaml > /dev/null 2>&1
+
+  ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
+  kubectl create -R -f central-bundle/central > /dev/null 2>&1
+  rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
+  
+  until [ $(curl -kIs https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
+    
+  curl -sk -u admin:$password "https://$server:$rox_port/v1/licenses/add" -H 'Accept: application/json, text/plain, */*' -H 'Accept-Language: en-US,en;q=0.5' --compressed -H 'Content-Type: application/json;charset=utf-8' -d'{"activate":true,"licenseKey":"'$(cat $stackrox_lic)'"}' > /dev/null 2>&1
+
+  sleep 10
+  
+  roxctl -e $server:$rox_port sensor generate k8s --name rancher --central central.stackrox:443 --insecure-skip-tls-verify -p $password > /dev/null 2>&1
+
+  kubectl create -R -f central-bundle/scanner/ > /dev/null 2>&1
+
+  ./sensor-rancher/sensor.sh > /dev/null 2>&1
+
+  echo "$GREEN" " [ok]" "$NORMAL"
+  echo " - dashboard - https://rancher.$domain:$rox_port"
+}
+
+############################## kill ################################
+function kill () {
+
+if [ -f hosts.txt ]; then
+  echo -n " killing it all "
+  for i in $(awk '{print $2}' hosts.txt); do doctl compute droplet delete --force $i; done
+  for i in $(awk '{print $1}' hosts.txt); do ssh-keygen -q -R $i > /dev/null 2>&1; done
+  for i in $(doctl compute domain records list dockr.life|grep 'rancher'|awk '{print $1}'); do doctl compute domain records delete -f dockr.life $i; done
+
+  rm -rf *.txt *.log *.zip *.pem *.pub env.* backup.tar ~/.kube/config central* sensor* *token
+else
+  echo -n " no hosts file found "
+fi
+echo "$GREEN" "[ok]" "$NORMAL"
+}
+
+############################# status ################################
+function status () {
+  echo "===== Cluster ====="
+  doctl compute droplet list |grep $prefix
+  echo ""
+  echo "===== Dashboards ====="
+  echo " - Rancher  : https://rancher.dockr.life"
+  echo " - username : admin"
+  echo " - password : "$password
+  echo ""
+}
+
+case "$1" in
+        up) up;;
+        kill) kill;;
+        status) status;;
+        rox) rox;;
+        config) config;;
+        *) echo "Usage: $0 {up|kill|rox|config|status}"; exit 1
+esac
