@@ -37,6 +37,12 @@ function up () {
 export PDSH_RCMD_TYPE=ssh
 build_list=""
 uuid=""
+
+if [ -f hosts.txt ]; then
+  echo "$RED" "Warning - cluster already detected..." "$NORMAL"
+  exit
+fi
+
 for i in $(seq 1 $num); do
  uuid=$(uuid -v4| awk -F"-" '{print $4}')
  build_list="$prefix-$uuid $build_list"
@@ -59,8 +65,8 @@ worker=$(sed -n 2p hosts.txt|awk '{printf $1}')
 
 echo -n " updating dns"
 doctl compute domain records create $domain --record-type A --record-name rancher --record-ttl 300 --record-data $server > /dev/null 2>&1
-#doctl compute domain records create $domain --record-type A --record-name app --record-ttl 150 --record-data $worker > /dev/null 2>&1
-#doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data app.$domain. > /dev/null 2>&1
+doctl compute domain records create $domain --record-type A --record-name app --record-ttl 150 --record-data $worker > /dev/null 2>&1
+doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data app.$domain. > /dev/null 2>&1
 echo "$GREEN" "[ok]" "$NORMAL"
 
 if [[ "$image" == *"centos"* ]]; then
@@ -188,11 +194,18 @@ function config () {
 ################################ rox ##############################
 function rox () {
   echo -n " setting up stackrox "
+
+  if [ -d central-bundle ]; then
+    echo "$RED" "Warning - cental-bundle already detected..." "$NORMAL"
+    exit
+  fi
+
   if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
 
   server=$(sed -n 1p hosts.txt|awk '{print $1}')
 
   roxctl central generate k8s none --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+#  roxctl central generate k8s none --output-format helm --lb-type np --password $password > /dev/null 2>&1
 
   # move the nodeport to 30200
   sed -i '' $'s/targetPort: api/targetPort: api\\\n    nodePort: 30200/g' central-bundle/central/loadbalancer.yaml > /dev/null 2>&1
