@@ -153,6 +153,7 @@ curl -sk https://$server/v3/users?action=changepassword -H 'content-type: applic
 api_token=$(curl -sk https://$server/v3/token -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"token","description":"automation"}' | jq -r .token)
 echo $api_token > api_token
 curl -sk https://$server/v3/settings/server-url -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"name":"server-url","value":"https://'$server'"}' > /dev/null 2>&1
+curl -sk https://$server/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
 echo "$GREEN" "[ok]" "$NORMAL"
 
 
@@ -167,11 +168,6 @@ agent_command=$(curl -sk https://$server/v3/clusterregistrationtoken -H 'content
 
 ssh $user@$server "$agent_command --etcd --controlplane --worker" > /dev/null 2>&1
 pdsh -l $user -w $agent_list "$agent_command --worker" > /dev/null 2>&1
-
-echo "$GREEN" "[ok]" "$NORMAL"
-
-echo -n " disable telemetry "
-curl -sk https://$server/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
 echo "$GREEN" "[ok]" "$NORMAL"
 
 config
@@ -204,8 +200,9 @@ function rox () {
 
   server=$(sed -n 1p hosts.txt|awk '{print $1}')
 
-  roxctl central generate k8s none --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
-#  roxctl central generate k8s none --output-format helm --lb-type np --password $password > /dev/null 2>&1
+  roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+#FOR HELM
+#  roxctl central generate k8s none --output-format helm --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
   # move the nodeport to 30200
   sed -i '' $'s/targetPort: api/targetPort: api\\\n    nodePort: 30200/g' central-bundle/central/loadbalancer.yaml > /dev/null 2>&1
@@ -216,7 +213,7 @@ function rox () {
   
   until [ $(curl -kIs https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
     
-  curl -sk -u admin:$password "https://$server:$rox_port/v1/licenses/add" -H 'Accept: application/json, text/plain, */*' -H 'Accept-Language: en-US,en;q=0.5' --compressed -H 'Content-Type: application/json;charset=utf-8' -d'{"activate":true,"licenseKey":"'$(cat $stackrox_lic)'"}' > /dev/null 2>&1
+  #curl -sk -u admin:$password "https://$server:$rox_port/v1/licenses/add" -H 'Accept: application/json, text/plain, */*' -H 'Accept-Language: en-US,en;q=0.5' --compressed -H 'Content-Type: application/json;charset=utf-8' -d'{"activate":true,"licenseKey":"'$(cat $stackrox_lic)'"}' > /dev/null 2>&1
 
   sleep 10
   
