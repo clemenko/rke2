@@ -65,8 +65,7 @@ worker=$(sed -n 2p hosts.txt|awk '{printf $1}')
 
 echo -n " updating dns"
 doctl compute domain records create $domain --record-type A --record-name rancher --record-ttl 300 --record-data $server > /dev/null 2>&1
-doctl compute domain records create $domain --record-type A --record-name app --record-ttl 150 --record-data $worker > /dev/null 2>&1
-doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data app.$domain. > /dev/null 2>&1
+doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data rancher.$domain. > /dev/null 2>&1
 echo "$GREEN" "[ok]" "$NORMAL"
 
 if [[ "$image" == *"centos"* ]]; then
@@ -170,7 +169,15 @@ ssh $user@$server "$agent_command --etcd --controlplane --worker" > /dev/null 2>
 pdsh -l $user -w $agent_list "$agent_command --worker" > /dev/null 2>&1
 echo "$GREEN" "[ok]" "$NORMAL"
 
-config
+echo -n " setting up kubectl "
+curl -sk https://$server/v3/clusters/$clusterid?action=generateKubeconfig -X POST -H 'accept: application/json' -H "Authorization: Bearer $api_token" | jq -r .config > ~/.kube/config
+echo "$GREEN" "[ok]" "$NORMAL"
+
+echo -n " building nfs server for pv "
+nfs_list=$(awk '{printf $1" "}' hosts.txt|sed 's/,$//')
+nfs_opts=$(echo -n "/opt/nfs"; for i in $nfs_list; do echo -n " $i(rw,sync,no_root_squash,no_all_squash)"; done )
+ssh root@$server 'mkdir /opt/nfs; chmod -R 777 /opt/nfs; yum -y install nfs-utils; systemctl enable rpcbind nfs-server; systemctl start rpcbind nfs-server ; echo "'$nfs_opts'" > /etc/exports; systemctl restart nfs-server' > /dev/null 2>&1
+echo "$GREEN" "[ok]" "$NORMAL"
 
 echo ""
 echo "========= Rancher install complete ========="
