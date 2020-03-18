@@ -148,7 +148,7 @@ echo "$GREEN" "[ok]" "$NORMAL"
 
 echo -n " setting up rancher server "
 token=$(curl -sk https://$server/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"admin"}'| jq -r .token)
-curl -sk https://$server/v3/users?action=changepassword -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"currentPassword":"admin","newPassword":"Pa22word"}' > /dev/null 2>&1
+curl -sk https://$server/v3/users?action=changepassword -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"currentPassword":"admin","newPassword":"'$password'"}' > /dev/null 2>&1
 api_token=$(curl -sk https://$server/v3/token -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"token","description":"automation"}' | jq -r .token)
 echo $api_token > api_token
 curl -sk https://$server/v3/settings/server-url -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"name":"server-url","value":"https://'$server'"}' > /dev/null 2>&1
@@ -184,14 +184,6 @@ echo "========= Rancher install complete ========="
 echo ""
 
 status
-}
-
-################################ config ##############################
-function config () {
-  server=$(cat hosts.txt|head -1|awk '{print $1}')
-  api_token=$(cat api_token)
-  clusterid=$(curl -sk https://$server/v3/cluster -H 'content-type: application/json' -H "Authorization: Bearer $api_token" | jq -r .data[].id)
-  curl -sk https://$server/v3/clusters/$clusterid?action=generateKubeconfig -X POST -H 'accept: application/json' -H "Authorization: Bearer $api_token" | jq -r .config > ~/.kube/config
 }
 
 ################################ rox ##############################
