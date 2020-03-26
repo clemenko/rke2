@@ -1,4 +1,5 @@
 #!/bin/bash
+#https://github.com/clemenko/rancher/blob/master/rancher.sh
 ###################################
 # edit vars
 ###################################
@@ -64,13 +65,13 @@ server=$(sed -n 1p hosts.txt|awk '{print $1}')
 worker=$(sed -n 2p hosts.txt|awk '{printf $1}')
 
 echo -n " updating dns"
-doctl compute domain records create $domain --record-type A --record-name rancher --record-ttl 300 --record-data $server > /dev/null 2>&1
-doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data rancher.$domain. > /dev/null 2>&1
+doctl compute domain records create $domain --record-type A --record-name $prefix --record-ttl 300 --record-data $server > /dev/null 2>&1
+doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix.$domain. > /dev/null 2>&1
 echo "$GREEN" "[ok]" "$NORMAL"
 
 if [[ "$image" == *"centos"* ]]; then
   echo -n " updating the os and installing docker "
-  pdsh -l $user -w $host_list 'setenforce 0; sed -i s/best=True/best=False/g /etc/dnf/dnf.conf; yum update-y; yum install -y yum-utils; yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo; yum install docker-ce -y; systemctl start docker; systemctl enable docker' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'setenforce 0; sed -i s/best=True/best=False/g /etc/dnf/dnf.conf; yum update -y; yum install -y yum-utils; yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo; yum install docker-ce -y; systemctl start docker; systemctl enable docker' > /dev/null 2>&1
   echo "$GREEN" "[ok]" "$NORMAL"
 
   echo -n " updating kernel settings "
@@ -155,7 +156,6 @@ curl -sk https://$server/v3/settings/server-url -H 'content-type: application/js
 curl -sk https://$server/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
 echo "$GREEN" "[ok]" "$NORMAL"
 
-
 echo -n " attaching agents "
 agent_list=$(sed -n 2,"$num"p hosts.txt|awk '{printf $1","}')
 
@@ -233,9 +233,9 @@ if [ -f hosts.txt ]; then
   echo -n " killing it all "
   for i in $(awk '{print $2}' hosts.txt); do doctl compute droplet delete --force $i; done
   for i in $(awk '{print $1}' hosts.txt); do ssh-keygen -q -R $i > /dev/null 2>&1; done
-  for i in $(doctl compute domain records list dockr.life|grep 'rancher'|awk '{print $1}'); do doctl compute domain records delete -f dockr.life $i; done
+  for i in $(doctl compute domain records list dockr.life|grep $prefix|awk '{print $1}'); do doctl compute domain records delete -f dockr.life $i; done
 
-  rm -rf *.txt *.log *.zip *.pem *.pub env.* backup.tar ~/.kube/config central* sensor* *token
+  rm -rf *.txt *.log *.zip *.pem *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig
 else
   echo -n " no hosts file found "
 fi
