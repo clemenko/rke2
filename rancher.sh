@@ -14,8 +14,8 @@ domain=dockr.life
 #image=centos-7-x64
 image=ubuntu-19-10-x64
 
-#orchestrator=k3s
-orchestrator=rancher
+orchestrator=k3s
+#orchestrator=rancher
 
 #stackrox
 stackrox_lic="stackrox.lic"
@@ -229,8 +229,6 @@ function rox () {
   rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
   
   until [ $(curl -kIs https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
-    
-  sleep 10
   
   roxctl -e $server:$rox_port sensor generate k8s --name rancher --central central.stackrox:443 --insecure-skip-tls-verify -p $password > /dev/null 2>&1
 
