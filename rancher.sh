@@ -14,8 +14,8 @@ domain=dockr.life
 #image=centos-7-x64
 image=ubuntu-19-10-x64
 
-orchestrator=k3s
-#orchestrator=rancher
+#orchestrator=k3s
+orchestrator=rancher
 
 #stackrox
 stackrox_lic="stackrox.lic"
@@ -246,7 +246,7 @@ if [ -f hosts.txt ]; then
   echo -n " killing it all "
   for i in $(awk '{print $2}' hosts.txt); do doctl compute droplet delete --force $i; done
   for i in $(awk '{print $1}' hosts.txt); do ssh-keygen -q -R $i > /dev/null 2>&1; done
-  for i in $(doctl compute domain records list dockr.life|grep $prefix|awk '{print $1}'); do doctl compute domain records delete -f dockr.life $i; done
+  for i in $(doctl compute domain records list dockr.life|grep 'k3s\|rancher'|awk '{print $1}'); do doctl compute domain records delete -f dockr.life $i; done
 
   rm -rf *.txt *.log *.zip *.pem *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig
 else
