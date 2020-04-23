@@ -14,8 +14,8 @@ domain=dockr.life
 #image=centos-7-x64
 image=ubuntu-19-10-x64
 
-#orchestrator=k3s
-orchestrator=rancher
+orchestrator=k3s
+#orchestrator=rancher
 
 #stackrox
 stackrox_lic="stackrox.lic"
@@ -186,6 +186,7 @@ if [ "$orchestrator" = k3s ]; then
   k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik --docker' --cluster  > /dev/null 2>&1
   k3sup join --ip $worker1 --server-ip $server --user $user --k3s-extra-args '--docker'  > /dev/null 2>&1
   k3sup join --ip $worker2 --server-ip $server --user $user --k3s-extra-args '--docker'  > /dev/null 2>&1
+  mv kubeconfig ~/.kube/config
   echo "$GREEN" "[ok]" "$NORMAL"
 fi
 
@@ -225,14 +226,14 @@ function rox () {
   sed -i '' $'s/targetPort: api/targetPort: api\\\n    nodePort: 30200/g' central-bundle/central/loadbalancer.yaml > /dev/null 2>&1
 
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
-  kubectl create -R -f central-bundle/central > /dev/null 2>&1
+  kubectl apply -R -f central-bundle/central > /dev/null 2>&1
   rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
   
   until [ $(curl -kIs https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
   
   roxctl -e $server:$rox_port sensor generate k8s --name rancher --central central.stackrox:443 --insecure-skip-tls-verify -p $password > /dev/null 2>&1
 
-  kubectl create -R -f central-bundle/scanner/ > /dev/null 2>&1
+  kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
   ./sensor-rancher/sensor.sh > /dev/null 2>&1
 
   echo "$GREEN" " [ok]" "$NORMAL"
@@ -261,14 +262,9 @@ function status () {
   echo "===== Cluster ====="
   doctl compute droplet list |grep $prefix
   echo ""
-  echo "===== Dashboards ====="
-  
-  if [ "$orchestrator" = k3s ]; then
-    echo " export KUBECONFIG=/Users/clemenko/Dropbox/stackrox/rancher/kubeconfig "
-    echo " kubectl get node -o wide "
-  fi
 
   if [ "$orchestrator" = rancher ]; then
+    echo "===== Dashboards ====="
     echo " - Rancher  : https://rancher.dockr.life"
     echo " - username : admin"
     echo " - password : "$password
