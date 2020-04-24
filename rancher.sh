@@ -12,7 +12,7 @@ key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
 #image=centos-7-x64
-image=ubuntu-19-10-x64
+image=ubuntu-20-04-x64
 
 orchestrator=k3s
 #orchestrator=rancher
@@ -80,9 +80,11 @@ if [[ "$image" == *"centos"* ]]; then
   echo "$GREEN" "[ok]" "$NORMAL"
 fi
 
-if [ "$image" = ubuntu-19-10-x64 ]; then
+if [[ "$image" = *"ubuntu"* ]]; then
  echo -n " updating the os and installing docker "
- pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker; #apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
+ pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu disco stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker; #apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
+ #$(lsb_release -cs)
+
  echo "$GREEN" "[ok]" "$NORMAL"
 fi
 
