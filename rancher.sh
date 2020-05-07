@@ -12,7 +12,7 @@ key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
 #image=centos-7-x64
-image=ubuntu-20-04-x64
+image=ubuntu-19-10-x64
 
 orchestrator=k3s
 #orchestrator=rancher
@@ -224,7 +224,6 @@ function rox () {
 #FOR HELM
 #  roxctl central generate k8s none --output-format helm --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
-exit
   # move the nodeport to 30200
   sed -i '' $'s/targetPort: api/targetPort: api\\\n    nodePort: 30200/g' central-bundle/central/loadbalancer.yaml > /dev/null 2>&1
 
@@ -234,7 +233,7 @@ exit
   
   until [ $(curl -kIs https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
   
-  roxctl -e $server:$rox_port sensor generate k8s --name rancher --central central.stackrox:443 --insecure-skip-tls-verify -p $password > /dev/null 2>&1
+  roxctl sensor generate k8s -e $server:$rox_port --name rancher --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module -p $password > /dev/null 2>&1
 
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
   ./sensor-rancher/sensor.sh > /dev/null 2>&1
