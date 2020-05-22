@@ -12,7 +12,7 @@ key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
 #image=centos-7-x64
-image=ubuntu-19-10-x64
+image=ubuntu-20-04-x64
 
 orchestrator=k3s
 #orchestrator=rancher
@@ -52,6 +52,7 @@ for i in $(seq 1 $num); do
  uuid=$(uuid -v4| awk -F"-" '{print $4}')
  build_list="$prefix-$uuid $build_list"
 done
+
 echo -n " building vms - $build_list "
 doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --tag-name k8s:worker --wait > /dev/null 2>&1
 doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'> hosts.txt
