@@ -6,13 +6,13 @@
 set -e
 num=3
 password=Pa22word
-zone=nyc1
+zone=nyc3
 size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
 #image=centos-7-x64
-image=ubuntu-20-04-x64
+image=ubuntu-19-10-x64
 
 orchestrator=k3s
 #orchestrator=rancher
@@ -240,7 +240,7 @@ function rox () {
   ./sensor-rancher/sensor.sh > /dev/null 2>&1
 
   echo "$GREEN" " [ok]" "$NORMAL"
-  echo " - dashboard - https://rancher.$domain:$rox_port"
+  echo " - dashboard - https://rancher.$domain"
 }
 
 ############################## kill ################################
