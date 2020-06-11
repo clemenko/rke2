@@ -240,7 +240,7 @@ function rox () {
   ./sensor-rancher/sensor.sh > /dev/null 2>&1
 
   echo "$GREEN" " [ok]" "$NORMAL"
-  echo " - dashboard - https://rancher.$domain"
+  echo " - dashboard - https://stackrox.$domain"
 }
 
 ############################## kill ################################
