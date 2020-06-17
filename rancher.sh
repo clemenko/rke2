@@ -222,6 +222,7 @@ function rox () {
   server=$(sed -n 1p hosts.txt|awk '{print $1}')
 
   roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+
 #FOR HELM
 #  roxctl central generate k8s none --output-format helm --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
