@@ -225,18 +225,16 @@ function rox () {
 #FOR HELM
 #  roxctl central generate k8s none --output-format helm --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
-  # move the nodeport to 30200
-  sed -i '' $'s/targetPort: api/targetPort: api\\\n    nodePort: 30200/g' central-bundle/central/loadbalancer.yaml > /dev/null 2>&1
-
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
   kubectl apply -R -f central-bundle/central > /dev/null 2>&1
   rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
   
   until [ $(curl -kIs https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
   
-  roxctl sensor generate k8s -e $server:$rox_port --name rancher --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module -p $password > /dev/null 2>&1
-
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
+
+  roxctl sensor generate k8s -e $server:$rox_port --name rancher --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module -p $password > /dev/null 2>&1
+  
   ./sensor-rancher/sensor.sh > /dev/null 2>&1
 
   echo "$GREEN" " [ok]" "$NORMAL"
