@@ -219,8 +219,6 @@ function rox () {
 
   if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
 
-  server=$(sed -n 1p hosts.txt|awk '{print $1}')
-
   roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
 #FOR HELM
@@ -228,6 +226,9 @@ function rox () {
 
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
   kubectl apply -R -f central-bundle/central > /dev/null 2>&1
+
+ # get the server and port from kubectl - assuming nodeport
+  server=$(kubectl get nodes -o json | jq -r '.items[0].status.addresses[] | select( .type=="ExternalIP" ) | .address ')
   rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
   
   until [ $(curl -kIs https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
