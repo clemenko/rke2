@@ -221,6 +221,10 @@ function rox () {
 
   roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
+#for PVC
+#kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml
+#roxctl central generate k8s pvc --storage-class longhorn --license stackrox.lic --enable-telemetry=false --lb-type np --password $password
+
 #FOR HELM
 #  roxctl central generate k8s none --output-format helm --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
@@ -228,7 +232,7 @@ function rox () {
   kubectl apply -R -f central-bundle/central > /dev/null 2>&1
 
  # get the server and port from kubectl - assuming nodeport
-  server=$(kubectl get nodes -o json | jq -r '.items[0].status.addresses[] | select( .type=="ExternalIP" ) | .address ')
+  server=$(kubectl get nodes -o json | jq -r '.items[0].status.addresses[] | select( .type=="InternalIP" ) | .address ')
   rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
   
   until [ $(curl -kIs https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
