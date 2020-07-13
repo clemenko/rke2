@@ -223,8 +223,10 @@ function rox () {
 
 #for PVC
 #kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml
-#roxctl central generate k8s pvc --storage-class longhorn --license stackrox.lic --enable-telemetry=false --lb-type np --password $password
 
+#kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+#roxctl central generate k8s pvc --storage-class longhorn --license stackrox.lic --enable-telemetry=false --lb-type np --password $password
 #FOR HELM
 #  roxctl central generate k8s none --output-format helm --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
@@ -239,7 +241,7 @@ function rox () {
   
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
 
-  roxctl sensor generate k8s -e $server:$rox_port --name rancher --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module -p $password > /dev/null 2>&1
+  roxctl sensor generate k8s -e $server:$rox_port --name rancher --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module --admission-controller -p $password > /dev/null 2>&1
   
   ./sensor-rancher/sensor.sh > /dev/null 2>&1
 
