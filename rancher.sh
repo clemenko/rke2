@@ -12,7 +12,8 @@ key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
 #image=centos-7-x64
-image=ubuntu-19-10-x64
+#image=ubuntu-19-10-x64
+image=ubuntu-20-04-x64
 
 orchestrator=k3s
 #orchestrator=rancher
@@ -20,7 +21,7 @@ orchestrator=k3s
 #stackrox
 stackrox_lic="stackrox.lic"
 export REGISTRY_USERNAME=andy@stackrox.com
-#REGISTRY_PASSWORD=
+#export REGISTRY_PASSWORD=
 
 ######  NO MOAR EDITS #######
 ################################# up ################################
@@ -219,14 +220,15 @@ function rox () {
 
   if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
 
-  roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+    roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
 #for PVC
 #kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml
 
 #kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 
-#roxctl central generate k8s pvc --storage-class longhorn --license stackrox.lic --enable-telemetry=false --lb-type np --password $password
+  #roxctl central generate k8s pvc --storage-class longhorn --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+
 #FOR HELM
 #  roxctl central generate k8s none --output-format helm --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
@@ -241,7 +243,7 @@ function rox () {
   
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
 
-  roxctl sensor generate k8s -e $server:$rox_port --name rancher --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module --admission-controller -p $password > /dev/null 2>&1
+  roxctl sensor generate k8s -e $server:$rox_port --name rancher --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module --admission-controller-enabled -p $password > /dev/null 2>&1
   
   ./sensor-rancher/sensor.sh > /dev/null 2>&1
 
