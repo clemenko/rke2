@@ -14,8 +14,8 @@ domain=dockr.life
 #image=centos-7-x64
 image=ubuntu-20-04-x64
 
-#orchestrator=k3s
-orchestrator=rancher
+orchestrator=k3s
+#orchestrator=rancher
 
 #stackrox
 stackrox_lic="stackrox.lic"
@@ -208,29 +208,41 @@ echo ""
 status
 }
 
+################################ longhorn ##############################
+function longhorn () {
+  echo -  "Deploying Longhorn"
+  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml
+  kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+  kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+
+  #wait for longhorn to initiaize
+  until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ]; do echo -n "." ; sleep 2; done
+  echo ""
+  echo "$GREEN" " [ok]" "$NORMAL"
+}
+
 ################################ rox ##############################
 function rox () {
   echo -n " setting up stackrox "
 
+# ensure no central-bundle is not present
   if [ -d central-bundle ]; then
     echo "$RED" "Warning - cental-bundle already detected..." "$NORMAL"
     exit
   fi
 
+# check for credentials for help.stackrox.com 
   if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
 
-    roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+# non-pvc # roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
-#for PVC
-#kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml
+# deploy longhorn
+  longhorn
 
-#kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+# generate stackrox yaml
+  roxctl central generate k8s pvc --storage-class longhorn --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
-  #roxctl central generate k8s pvc --storage-class longhorn --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
-
-#FOR HELM
-#  roxctl central generate k8s none --output-format helm --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
-
+# setup and install central
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
   kubectl apply -R -f central-bundle/central > /dev/null 2>&1
 
@@ -238,12 +250,17 @@ function rox () {
   server=$(kubectl get nodes -o json | jq -r '.items[0].status.addresses[] | select( .type=="InternalIP" ) | .address ')
   rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
   
+# wait for central to be up
   until [ $(curl -kIs https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
   
+# setup and install scanner
+  ./central-bundle/scanner/scripts/setup.sh > /dev/null 2>&1
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
 
+# ask central for a sensor bundle
   roxctl sensor generate k8s -e $server:$rox_port --name rancher --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module --admission-controller-enabled -p $password > /dev/null 2>&1
   
+# install sensors
   ./sensor-rancher/sensor.sh > /dev/null 2>&1
 
   echo "$GREEN" " [ok]" "$NORMAL"
