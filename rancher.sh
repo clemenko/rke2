@@ -12,11 +12,10 @@ key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
 #image=centos-7-x64
-#image=ubuntu-19-10-x64
 image=ubuntu-20-04-x64
 
-orchestrator=k3s
-#orchestrator=rancher
+#orchestrator=k3s
+orchestrator=rancher
 
 #stackrox
 stackrox_lic="stackrox.lic"
@@ -49,33 +48,38 @@ if [ -f hosts.txt ]; then
   exit
 fi
 
+#rando list generation
 for i in $(seq 1 $num); do
  uuid=$(uuid -v4| awk -F"-" '{print $4}')
  build_list="$prefix-$uuid $build_list"
 done
 
+#build VMS
 echo -n " building vms - $build_list "
 doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --tag-name k8s:worker --wait > /dev/null 2>&1
 doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'> hosts.txt
-
 echo "$GREEN" "[ok]" "$NORMAL"
 
+#check for SSH
 echo -n " checking for ssh "
 for ext in $(awk '{print $1}' hosts.txt); do
   until [ $(ssh -o ConnectTimeout=1 $user@$ext 'exit' 2>&1 | grep 'timed out\|refused' | wc -l) = 0 ]; do echo -n "." ; sleep 5; done
 done
 echo "$GREEN" "[ok]" "$NORMAL"
 
+#get ips
 host_list=$(awk '{printf $1","}' hosts.txt|sed 's/,$//')
 server=$(sed -n 1p hosts.txt|awk '{print $1}')
 worker1=$(sed -n 2p hosts.txt|awk '{printf $1}')
 worker2=$(sed -n 3p hosts.txt|awk '{printf $1}')
 
+#update DNS
 echo -n " updating dns"
 doctl compute domain records create $domain --record-type A --record-name $prefix --record-ttl 300 --record-data $server > /dev/null 2>&1
 doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix.$domain. > /dev/null 2>&1
 echo "$GREEN" "[ok]" "$NORMAL"
 
+#host modifications and Docker install
 if [[ "$image" == *"centos"* ]]; then
   echo -n " updating the os and installing docker "
   pdsh -l $user -w $host_list 'setenforce 0; sed -i s/best=True/best=False/g /etc/dnf/dnf.conf; yum update -y; yum install -y yum-utils; yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo; yum install docker-ce -y; systemctl start docker; systemctl enable docker' > /dev/null 2>&1
@@ -86,10 +90,10 @@ if [[ "$image" = *"ubuntu"* ]]; then
  echo -n " updating the os and installing docker "
  pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker; #apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
  #$(lsb_release -cs)
-
  echo "$GREEN" "[ok]" "$NORMAL"
 fi
 
+#kernel tuning
 echo -n " updating kernel settings "
 pdsh -l $user -w $host_list 'cat << EOF >> /etc/sysctl.conf
 # SWAP settings
@@ -140,10 +144,12 @@ EOF
 sysctl -p' > /dev/null 2>&1
 echo "$GREEN" "[ok]" "$NORMAL"
 
+#docker daemon configs
 echo -n " adding daemon configs "
 pdsh -l $user -w $host_list 'echo -e "{\n \"selinux-enabled\": false, \n \"log-driver\": \"json-file\", \n \"log-opts\": {\"max-size\": \"10m\", \"max-file\": \"3\"} \n}" > /etc/docker/daemon.json; systemctl restart docker'
 echo "$GREEN" "[ok]" "$NORMAL"
 
+#deploy Rancher
 if [ "$orchestrator" = rancher ]; then
   echo -n " starting rancher server "
   ssh $user@$server "docker run -d -p 80:80 -p 443:443 --restart=unless-stopped rancher/rancher" > /dev/null 2>&1
@@ -185,20 +191,13 @@ if [ "$orchestrator" = rancher ]; then
   echo "$GREEN" "[ok]" "$NORMAL"
 fi
 
+#or deploy k3s
 if [ "$orchestrator" = k3s ]; then
   echo -n " setting up k3s cluster "
   k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik --docker' --cluster  > /dev/null 2>&1
   k3sup join --ip $worker1 --server-ip $server --user $user --k3s-extra-args '--docker'  > /dev/null 2>&1
   k3sup join --ip $worker2 --server-ip $server --user $user --k3s-extra-args '--docker'  > /dev/null 2>&1
   mv kubeconfig ~/.kube/config
-  echo "$GREEN" "[ok]" "$NORMAL"
-fi
-
-if [[ "$image" == *"centos"* ]]; then
-  echo -n " building nfs server for pv "
-  nfs_list=$(awk '{printf $1" "}' hosts.txt|sed 's/,$//')
-  nfs_opts=$(echo -n "/opt/nfs"; for i in $nfs_list; do echo -n " $i(rw,sync,no_root_squash,no_all_squash)"; done )
-  ssh root@$server 'mkdir /opt/nfs; chmod -R 777 /opt/nfs; yum -y install nfs-utils; systemctl enable rpcbind nfs-server; systemctl start rpcbind nfs-server ; echo "'$nfs_opts'" > /etc/exports; systemctl restart nfs-server' > /dev/null 2>&1
   echo "$GREEN" "[ok]" "$NORMAL"
 fi
 
@@ -252,6 +251,7 @@ function rox () {
 }
 
 ############################## kill ################################
+#remove the vms
 function kill () {
 
 if [ -f hosts.txt ]; then
@@ -276,7 +276,7 @@ function status () {
 
   if [ "$orchestrator" = rancher ]; then
     echo "===== Dashboards ====="
-    echo " - Rancher  : https://rancher.dockr.life"
+    echo " - Rancher  : https://rancher.$domain"
     echo " - username : admin"
     echo " - password : "$password
   fi 
