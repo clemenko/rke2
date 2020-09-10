@@ -17,7 +17,7 @@ image=ubuntu-20-04-x64
 orchestrator=k3s
 #orchestrator=rancher
 
-#stackrox
+#stackrox automation.
 stackrox_lic="stackrox.lic"
 export REGISTRY_USERNAME=andy@stackrox.com
 #export REGISTRY_PASSWORD=
@@ -213,7 +213,7 @@ function longhorn () {
   echo -n  "  - longhorn "
   kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
   kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
-  kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+  if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
 
   #wait for longhorn to initiaize
   until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ]; do echo -n "." ; sleep 2; done
@@ -235,10 +235,15 @@ function rox () {
 
 # non-pvc # roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
+# deploy traefik
+  echo -n  "  - traefik "
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
+  echo "$GREEN" " [ok]" "$NORMAL"
+
 # deploy longhorn
   longhorn
 
- echo -n  "  - stackrox "  
+  echo -n  "  - stackrox "  
 # generate stackrox yaml
   roxctl central generate k8s pvc --storage-class longhorn --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
@@ -262,6 +267,9 @@ function rox () {
   
 # install sensors
   ./sensor-rancher/sensor.sh > /dev/null 2>&1
+
+# deploy traefik CRD IngressRoute
+  kubectl apply -f kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
 
   echo "$GREEN" " [ok]" "$NORMAL"
   echo " - dashboard - https://stackrox.$domain"
@@ -301,11 +309,25 @@ function status () {
   echo ""
 }
 
+
+function usage () {
+  echo "----------------------------------------------------------------------------------------------------"
+  echo " Usage: $0 {up|kill|rox|config|status}"; 
+  echo ""
+  echo " How I use it : "
+  echo " # build vms"
+  echo " ./rancher.sh up"
+  echo " # deploy traefik, longhorn, and stackrox"
+  echo " ./rancher.sh rox"
+  exit 1
+}
+
+
 case "$1" in
         up) up;;
         kill) kill;;
         status) status;;
         rox) rox;;
         config) config;;
-        *) echo "Usage: $0 {up|kill|rox|config|status}"; exit 1
+        *) usage;;
 esac
