@@ -93,10 +93,10 @@ if [[ "$image" == *"centos"* ]]; then
 fi
 
 if [[ "$image" = *"ubuntu"* ]]; then
- echo -n " updating the os and installing docker "
- pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker; #apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
- #$(lsb_release -cs)
- echo "$GREEN" "[ok]" "$NORMAL"
+  echo -n " updating the os and installing docker "
+  pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker; apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
+  #$(lsb_release -cs)
+  echo "$GREEN" "[ok]" "$NORMAL"
 fi
 
 #kernel tuning
@@ -207,8 +207,7 @@ if [ "$orchestrator" = k3s ]; then
   echo "$GREEN" "[ok]" "$NORMAL"
 fi
 
-echo ""
-echo "========= Rancher install complete ========="
+echo " - install complete -"
 echo ""
 
 status
@@ -216,7 +215,7 @@ status
 
 ################################ longhorn ##############################
 function longhorn () {
-  echo -n  "  - longhorn "
+  echo -n  "  - longhorn"
   kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
   kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
   if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
@@ -242,9 +241,9 @@ function rox () {
 # non-pvc # roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
 # deploy traefik
-  echo -n  "  - traefik "
+  echo -n  "  - traefik"
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
-  echo "$GREEN" " [ok]" "$NORMAL"
+  echo "$GREEN" "[ok]" "$NORMAL"
 
 # deploy longhorn
   longhorn
@@ -278,15 +277,15 @@ function rox () {
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
 
   echo "$GREEN" " [ok]" "$NORMAL"
-  echo " - dashboard - https://stackrox.$domain"
+  echo "  - dashboard - $GREEN https://stackrox.$domain $NORMAL"
 }
 
 ############################# demo ################################
 function demo () {
   echo " deploying :"
-  echo -n " - jenkins"; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins.yaml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
-  echo -n " - whoami";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
-  echo -n " - struts";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
+  echo -n "  - jenkins"; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins.yaml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
+  echo -n "  - whoami";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
+  echo -n "  - struts";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
   echo -n " - flask";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
   echo -n "  - creating jenkins api token"
   curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_API_TOKEN
@@ -332,7 +331,7 @@ function usage () {
   echo ""
   echo "-------------------------------------------------"
   echo ""
-  echo " Usage: $0 {up|kill|rox|status|demo}"; 
+  echo " Usage: $0 {up|kill|rox|status|demo}"
   echo ""
   echo " ./rancher.sh up # build the vms "
   echo " ./rancher.sh rox # deploy the good stuff"
