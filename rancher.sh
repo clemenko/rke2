@@ -1,5 +1,9 @@
 #!/bin/bash
-#https://github.com/clemenko/rancher/blob/master/rancher.sh
+# https://github.com/clemenko/rancher/blob/master/rancher.sh
+# this script assumes digitalocean is setup with DNS.
+# you need doctl, kubectl, uuid, jq, k3sup, pdsh and curl installed.
+# clemenko@gmail.com 
+
 ###################################
 # edit vars
 ###################################
@@ -32,11 +36,13 @@ if [ "$image" = rancheros ]; then user=rancher; else user=root; fi
 if [ "$orchestrator" = k3s ]; then prefix=k3s; else prefix=rancher; fi
 
 #better error checking
+command -v doctl >/dev/null 2>&1 || { echo "$RED" " ** Doctl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v curl >/dev/null 2>&1 || { echo "$RED" " ** Curl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "$RED" " ** Jq was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v pdsh >/dev/null 2>&1 || { echo "$RED" " ** Pdsh was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v uuid >/dev/null 2>&1 || { echo "$RED" " ** Uuid was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v k3sup >/dev/null 2>&1 || { echo "$RED" " ** K3sup was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
+command -v kubectl >/dev/null 2>&1 || { echo "$RED" " ** Kubectl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 
 function up () {
 export PDSH_RCMD_TYPE=ssh
@@ -309,19 +315,22 @@ function status () {
   echo ""
 }
 
-
+############################# usage ################################
 function usage () {
-  echo "----------------------------------------------------------------------------------------------------"
-  echo " Usage: $0 {up|kill|rox|config|status}"; 
   echo ""
-  echo " How I use it : "
-  echo " # build vms"
-  echo " ./rancher.sh up"
-  echo " # deploy traefik, longhorn, and stackrox"
-  echo " ./rancher.sh rox"
+  echo "-------------------------------------------------"
+  echo ""
+  echo " Usage: $0 {up|kill|rox|status}"; 
+  echo ""
+  echo " ./rancher.sh up # build the vms "
+  echo " ./rancher.sh rox # deploy the good stuff"
+  echo " ./rancher.sh kill # kill the vms"
+  echo " ./rancher.sh status # get vm status"
+  echo ""
+  echo "-------------------------------------------------"
+  echo ""
   exit 1
 }
-
 
 case "$1" in
         up) up;;
