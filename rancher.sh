@@ -275,10 +275,20 @@ function rox () {
   ./sensor-rancher/sensor.sh > /dev/null 2>&1
 
 # deploy traefik CRD IngressRoute
-  kubectl apply -f kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
 
   echo "$GREEN" " [ok]" "$NORMAL"
   echo " - dashboard - https://stackrox.$domain"
+}
+
+############################# demo ################################
+function demo () {
+  echo " deploying :"
+  echo " - jenkins"; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins.yaml > /dev/null 2>&1
+  echo " - whoami";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1
+  echo " - struts";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1
+  echo " - flask";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1
+  echo "$GREEN" "[ok]" "$NORMAL"
 }
 
 ############################## kill ################################
@@ -320,12 +330,13 @@ function usage () {
   echo ""
   echo "-------------------------------------------------"
   echo ""
-  echo " Usage: $0 {up|kill|rox|status}"; 
+  echo " Usage: $0 {up|kill|rox|status|demo}"; 
   echo ""
   echo " ./rancher.sh up # build the vms "
   echo " ./rancher.sh rox # deploy the good stuff"
   echo " ./rancher.sh kill # kill the vms"
   echo " ./rancher.sh status # get vm status"
+  echo " ./rancher.sh demo # deploy demo apps"
   echo ""
   echo "-------------------------------------------------"
   echo ""
@@ -337,6 +348,6 @@ case "$1" in
         kill) kill;;
         status) status;;
         rox) rox;;
-        config) config;;
+        demo) demo;;
         *) usage;;
 esac
