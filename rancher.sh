@@ -31,6 +31,7 @@ export REGISTRY_USERNAME=andy@stackrox.com
 RED=$(tput setaf 1)
 GREEN=$(tput setaf 2)
 NORMAL=$(tput sgr0)
+BLUE=$(tput setaf 4)
 
 if [ "$image" = rancheros ]; then user=rancher; else user=root; fi
 if [ "$orchestrator" = k3s ]; then prefix=k3s; else prefix=rancher; fi
@@ -64,14 +65,14 @@ done
 echo -n " building vms - $build_list "
 doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --tag-name k8s:worker --wait > /dev/null 2>&1
 doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'> hosts.txt
-echo "$GREEN" "[ok]" "$NORMAL"
+echo "$GREEN" "ok" "$NORMAL"
 
 #check for SSH
 echo -n " checking for ssh "
 for ext in $(awk '{print $1}' hosts.txt); do
   until [ $(ssh -o ConnectTimeout=1 $user@$ext 'exit' 2>&1 | grep 'timed out\|refused' | wc -l) = 0 ]; do echo -n "." ; sleep 5; done
 done
-echo "$GREEN" "[ok]" "$NORMAL"
+echo "$GREEN" "ok" "$NORMAL"
 
 #get ips
 host_list=$(awk '{printf $1","}' hosts.txt|sed 's/,$//')
@@ -83,20 +84,20 @@ worker2=$(sed -n 3p hosts.txt|awk '{printf $1}')
 echo -n " updating dns"
 doctl compute domain records create $domain --record-type A --record-name $prefix --record-ttl 300 --record-data $server > /dev/null 2>&1
 doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix.$domain. > /dev/null 2>&1
-echo "$GREEN" "[ok]" "$NORMAL"
+echo "$GREEN" "ok" "$NORMAL"
 
 #host modifications and Docker install
 if [[ "$image" == *"centos"* ]]; then
   echo -n " updating the os and installing docker "
   pdsh -l $user -w $host_list 'setenforce 0; sed -i s/best=True/best=False/g /etc/dnf/dnf.conf; yum update -y; yum install -y yum-utils; yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo; yum install docker-ce -y; systemctl start docker; systemctl enable docker' > /dev/null 2>&1
-  echo "$GREEN" "[ok]" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
 fi
 
 if [[ "$image" = *"ubuntu"* ]]; then
   echo -n " updating the os and installing docker "
   pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker; apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
   #$(lsb_release -cs)
-  echo "$GREEN" "[ok]" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
 fi
 
 #kernel tuning
@@ -148,12 +149,12 @@ fs.inotify.max_user_instances=8192
 fs.inotify.max_user_watches=1048576
 EOF
 sysctl -p' > /dev/null 2>&1
-echo "$GREEN" "[ok]" "$NORMAL"
+echo "$GREEN" "ok" "$NORMAL"
 
 #docker daemon configs
 echo -n " adding daemon configs "
 pdsh -l $user -w $host_list 'echo -e "{\n \"selinux-enabled\": false, \n \"log-driver\": \"json-file\", \n \"log-opts\": {\"max-size\": \"10m\", \"max-file\": \"3\"} \n}" > /etc/docker/daemon.json; systemctl restart docker'
-echo "$GREEN" "[ok]" "$NORMAL"
+echo "$GREEN" "ok" "$NORMAL"
 
 #deploy Rancher
 if [ "$orchestrator" = rancher ]; then
@@ -162,7 +163,7 @@ if [ "$orchestrator" = rancher ]; then
 
   until curl $server:443 > /dev/null 2>&1; do echo -n .; sleep 2; done
   sleep 2
-  echo "$GREEN" "[ok]" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
 
   echo -n " setting up rancher server "
   until [ "$token" != "" ]; do 
@@ -177,7 +178,7 @@ if [ "$orchestrator" = rancher ]; then
   curl -sk https://$server/v3/settings/server-url -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"name":"server-url","value":"https://'$server'"}'  > /dev/null 2>&1
   
   curl -sk https://$server/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
-  echo "$GREEN" "[ok]" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
 
   echo -n " attaching agents "
   agent_list=$(sed -n 2,"$num"p hosts.txt|awk '{printf $1","}')
@@ -190,11 +191,11 @@ if [ "$orchestrator" = rancher ]; then
 
   ssh $user@$server "$agent_command --etcd --controlplane --worker" > /dev/null 2>&1
   pdsh -l $user -w $agent_list "$agent_command --worker" > /dev/null 2>&1
-  echo "$GREEN" "[ok]" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
 
   echo -n " setting up kubectl "
   curl -sk https://$server/v3/clusters/$clusterid?action=generateKubeconfig -X POST -H 'accept: application/json' -H "Authorization: Bearer $api_token" | jq -r .config > ~/.kube/config
-  echo "$GREEN" "[ok]" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
 fi
 
 #or deploy k3s
@@ -204,7 +205,7 @@ if [ "$orchestrator" = k3s ]; then
   k3sup join --ip $worker1 --server-ip $server --user $user --k3s-extra-args '--docker'  > /dev/null 2>&1
   k3sup join --ip $worker2 --server-ip $server --user $user --k3s-extra-args '--docker'  > /dev/null 2>&1
   mv kubeconfig ~/.kube/config
-  echo "$GREEN" "[ok]" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
 fi
 
 echo " - install complete -"
@@ -222,7 +223,7 @@ function longhorn () {
 
   #wait for longhorn to initiaize
   until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ]; do echo -n "." ; sleep 2; done
-  echo "$GREEN" " [ok]" "$NORMAL"
+  echo "$GREEN" " ok" "$NORMAL"
 }
 
 ################################ rox ##############################
@@ -243,7 +244,7 @@ function rox () {
 # deploy traefik
   echo -n  "  - traefik"
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
-  echo "$GREEN" "[ok]" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
 
 # deploy longhorn
   longhorn
@@ -276,20 +277,20 @@ function rox () {
 # deploy traefik CRD IngressRoute
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
 
-  echo "$GREEN" " [ok]" "$NORMAL"
-  echo "  - dashboard - $GREEN https://stackrox.$domain $NORMAL"
+  echo "$GREEN" " ok" "$NORMAL"
+  echo "  - dashboard - $BLUE https://stackrox.$domain $NORMAL"
 }
 
 ############################# demo ################################
 function demo () {
   echo " deploying :"
-  echo -n "  - jenkins"; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins.yaml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
-  echo -n "  - whoami";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
-  echo -n "  - struts";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
-  echo -n " - flask";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
+  echo -n "  - jenkins"; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins.yaml > /dev/null 2>&1; echo "$GREEN" "ok" "$NORMAL"
+  echo -n "  - whoami";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN" "ok" "$NORMAL"
+  echo -n "  - struts";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1; echo "$GREEN" "ok" "$NORMAL"
+  echo -n " - flask";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1; echo "$GREEN" "ok" "$NORMAL"
   echo -n "  - creating jenkins api token"
   curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_API_TOKEN
-  echo "$GREEN" "[ok]" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
 }
 
 ############################## kill ################################
@@ -307,7 +308,7 @@ else
   echo -n " no hosts file found "
 fi
 
-echo "$GREEN" "[ok]" "$NORMAL"
+echo "$GREEN" "ok" "$NORMAL"
 }
 
 ############################# status ################################
@@ -350,5 +351,6 @@ case "$1" in
         status) status;;
         rox) rox;;
         demo) demo;;
+        full) up; sleep 10; rox; demo;;
         *) usage;;
 esac
