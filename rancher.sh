@@ -14,8 +14,8 @@ domain=dockr.life
 #image=centos-7-x64
 image=ubuntu-20-04-x64
 
-orchestrator=k3s
-#orchestrator=rancher
+#orchestrator=k3s
+orchestrator=rancher
 
 #stackrox
 stackrox_lic="stackrox.lic"
@@ -210,20 +210,19 @@ status
 
 ################################ longhorn ##############################
 function longhorn () {
-  echo -  "Deploying Longhorn"
-  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml
-  kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-  kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+  echo -n  "  - longhorn "
+  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
+  kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
+  #kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}'
 
   #wait for longhorn to initiaize
   until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ]; do echo -n "." ; sleep 2; done
-  echo ""
   echo "$GREEN" " [ok]" "$NORMAL"
 }
 
 ################################ rox ##############################
 function rox () {
-  echo -n " setting up stackrox "
+  echo " deploying :"
 
 # ensure no central-bundle is not present
   if [ -d central-bundle ]; then
@@ -239,6 +238,7 @@ function rox () {
 # deploy longhorn
   longhorn
 
+ echo -n  "  - stackrox "  
 # generate stackrox yaml
   roxctl central generate k8s pvc --storage-class longhorn --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
