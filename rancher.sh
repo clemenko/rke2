@@ -284,10 +284,12 @@ function rox () {
 ############################# demo ################################
 function demo () {
   echo " deploying :"
-  echo " - jenkins"; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins.yaml > /dev/null 2>&1
-  echo " - whoami";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1
-  echo " - struts";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1
-  echo " - flask";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1
+  echo -n " - jenkins"; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins.yaml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
+  echo -n " - whoami";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
+  echo -n " - struts";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
+  echo -n " - flask";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1; echo "$GREEN" "[ok]" "$NORMAL"
+  echo -n "  - creating jenkins api token"
+  curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_API_TOKEN
   echo "$GREEN" "[ok]" "$NORMAL"
 }
 
