@@ -24,6 +24,8 @@ orchestrator=k3s
 #stackrox automation.
 stackrox_lic="stackrox.lic"
 export REGISTRY_USERNAME=andy@stackrox.com
+
+# Please set this before runing the script.
 #export REGISTRY_PASSWORD=
 
 ######  NO MOAR EDITS #######
@@ -216,14 +218,14 @@ status
 
 ################################ longhorn ##############################
 function longhorn () {
-  echo -n  "  - longhorn"
+  echo -n  "  - longhorn "
   kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
   kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
   if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
 
   #wait for longhorn to initiaize
   until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ]; do echo -n "." ; sleep 2; done
-  echo "$GREEN" " ok" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
 }
 
 ################################ rox ##############################
@@ -277,7 +279,7 @@ function rox () {
 # deploy traefik CRD IngressRoute
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
 
-  echo "$GREEN" " ok" "$NORMAL"
+  echo "$GREEN" "ok" "$NORMAL"
   echo "  - dashboard - $BLUE https://stackrox.$domain $NORMAL"
 }
 
@@ -303,7 +305,7 @@ if [ -f hosts.txt ]; then
   for i in $(awk '{print $1}' hosts.txt); do ssh-keygen -q -R $i > /dev/null 2>&1; done
   for i in $(doctl compute domain records list dockr.life|grep 'k3s\|rancher'|awk '{print $1}'); do doctl compute domain records delete -f dockr.life $i; done
 
-  rm -rf *.txt *.log *.zip *.pem *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig
+  rm -rf *.txt *.log *.zip *.pem *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN
 else
   echo -n " no hosts file found "
 fi
@@ -313,18 +315,16 @@ echo "$GREEN" "ok" "$NORMAL"
 
 ############################# status ################################
 function status () {
-  echo "===== Cluster ====="
-  doctl compute droplet list |grep $prefix
+  echo " --- Cluster ---"
+  doctl compute droplet list --no-header|grep $prefix
   echo ""
 
   if [ "$orchestrator" = rancher ]; then
-    echo "===== Dashboards ====="
     echo " - Rancher  : https://rancher.$domain"
     echo " - username : admin"
     echo " - password : "$password
-  fi 
-
-  echo ""
+    echo ""
+  fi
 }
 
 ############################# usage ################################
