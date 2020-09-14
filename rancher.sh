@@ -313,6 +313,13 @@ fi
 echo "$GREEN" "ok" "$NORMAL"
 }
 
+############################# full ################################
+function full () {
+  if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
+  up; sleep 10; rox; demo  
+}
+
+
 ############################# status ################################
 function status () {
   echo " --- Cluster ---"
@@ -352,6 +359,6 @@ case "$1" in
         status) status;;
         rox) rox;;
         demo) demo;;
-        full) up; sleep 10; rox; demo;;
+        full) full;;
         *) usage;;
 esac
