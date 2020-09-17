@@ -164,7 +164,6 @@ if [ "$orchestrator" = rancher ]; then
   ssh $user@$server "docker run -d -p 80:80 -p 443:443 --restart=unless-stopped rancher/rancher" > /dev/null 2>&1
 
   until curl $server:443 > /dev/null 2>&1; do echo -n .; sleep 2; done
-  sleep 2
   echo "$GREEN" "ok" "$NORMAL"
 
   echo -n " setting up rancher server "
@@ -316,7 +315,7 @@ echo "$GREEN" "ok" "$NORMAL"
 ############################# full ################################
 function full () {
   if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
-  up; sleep 10; rox; demo  
+  up; rox; demo  
 }
 
 
