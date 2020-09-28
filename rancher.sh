@@ -285,7 +285,6 @@ function rox () {
 
 ############################# demo ################################
 function demo () {
-  echo " deploying :"
   echo -n "  - jenkins"; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins.yaml > /dev/null 2>&1; echo "$GREEN" "ok" "$NORMAL"
   echo -n "  - whoami";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN" "ok" "$NORMAL"
   echo -n "  - struts";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1; echo "$GREEN" "ok" "$NORMAL"
@@ -316,16 +315,15 @@ echo "$GREEN" "ok" "$NORMAL"
 ############################# full ################################
 function full () {
   if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
-  up; rox; demo  
+  up; rox; linkerd_mesh; demo
 }
 
 ######################### linkerd #############################
 function linkerd_mesh () {
   command -v linkerd >/dev/null 2>&1 || { echo "$RED" " ** Linkerd was not found. Please install ** " "$NORMAL" >&2; exit 1; }
-  echo -n " deploying linkerd2 "
+  echo -n " - linkerd2 "
   linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
-  echo "  - dashboard - $BLUE https://linkerd.$domain $NORMAL"
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
 }
 
