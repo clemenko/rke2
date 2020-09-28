@@ -29,7 +29,6 @@ export REGISTRY_USERNAME=andy@stackrox.com
 #export REGISTRY_PASSWORD=
 
 ######  NO MOAR EDITS #######
-################################# up ################################
 RED=$(tput setaf 1)
 GREEN=$(tput setaf 2)
 NORMAL=$(tput sgr0)
@@ -47,6 +46,7 @@ command -v uuid >/dev/null 2>&1 || { echo "$RED" " ** Uuid was not found. Please
 command -v k3sup >/dev/null 2>&1 || { echo "$RED" " ** K3sup was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "$RED" " ** Kubectl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 
+################################# up ################################
 function up () {
 export PDSH_RCMD_TYPE=ssh
 build_list=""
@@ -270,10 +270,11 @@ function rox () {
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
 
 # ask central for a sensor bundle
-  roxctl sensor generate k8s -e $server:$rox_port --name rancher --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module --admission-controller-enabled -p $password > /dev/null 2>&1
-  
+  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module -p $password > /dev/null 2>&1
+  #--admission-controller-enabled
+
 # install sensors
-  ./sensor-rancher/sensor.sh > /dev/null 2>&1
+  ./sensor-k3s/sensor.sh > /dev/null 2>&1
 
 # deploy traefik CRD IngressRoute
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
@@ -318,6 +319,15 @@ function full () {
   up; rox; demo  
 }
 
+######################### linkerd #############################
+function linkerd_mesh () {
+  command -v linkerd >/dev/null 2>&1 || { echo "$RED" " ** Linkerd was not found. Please install ** " "$NORMAL" >&2; exit 1; }
+  echo -n " deploying linkerd2 "
+  linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
+  echo "$GREEN""ok" "$NORMAL"
+  echo "  - dashboard - $BLUE https://linkerd.$domain $NORMAL"
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
+}
 
 ############################# status ################################
 function status () {
@@ -358,6 +368,7 @@ case "$1" in
         status) status;;
         rox) rox;;
         demo) demo;;
+        linkerd ) linkerd_mesh;;
         full) full;;
         *) usage;;
 esac
