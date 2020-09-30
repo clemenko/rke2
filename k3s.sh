@@ -89,14 +89,14 @@ echo "$GREEN" "ok" "$NORMAL"
 
 #host modifications and Docker install
 if [[ "$image" = *"ubuntu"* ]]; then
-  echo -n " adding os packaages "
+  echo -n " adding os packaaes "
   pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
   #$(lsb_release -cs)
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
 if [[ "$image" = *"debian"* ]]; then
-  echo -n " adding os packaages "
+  echo -n " adding os packages "
   pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt upgrade -y; apt install curl -y open-iscsi' > /dev/null 2>&1
   #$(lsb_release -cs)
   echo "$GREEN" "ok" "$NORMAL"
@@ -123,7 +123,7 @@ function longhorn () {
   if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
 
   sleep 2
-  
+
   #wait for longhorn to initiaize
   until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ]; do echo -n "." ; sleep 2; done
   echo "$GREEN" "ok" "$NORMAL"
