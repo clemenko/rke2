@@ -16,6 +16,7 @@ key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
 image=ubuntu-20-04-x64
+#image=rancheros
 orchestrator=k3s
 
 #stackrox automation.
@@ -174,7 +175,6 @@ function rox () {
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
 
   echo "$GREEN" "ok" "$NORMAL"
-  echo "  - dashboard - $BLUE https://stackrox.$domain $NORMAL"
 }
 
 ############################# demo ################################
@@ -195,7 +195,7 @@ function demo () {
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
-  echo -n "  - prometheus "
+  echo -n "  - prometheus/grafana "
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/prometheus.yml > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/kube-state-metrics-complete.yml > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/prometheus_grafana_dashboards.yml > /dev/null 2>&1
