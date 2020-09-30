@@ -1,5 +1,5 @@
 #!/bin/bash
-# https://github.com/clemenko/rancher/blob/master/rancher.sh
+# https://github.com/clemenko/rancher/blob/master/k3s.sh
 # this script assumes digitalocean is setup with DNS.
 # you need doctl, kubectl, uuid, jq, k3sup, pdsh and curl installed.
 # clemenko@gmail.com 
@@ -15,11 +15,8 @@ size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
-#image=centos-7-x64
 image=ubuntu-20-04-x64
-
 orchestrator=k3s
-#orchestrator=rancher
 
 #stackrox automation.
 stackrox_lic="stackrox.lic"
@@ -35,7 +32,7 @@ NORMAL=$(tput sgr0)
 BLUE=$(tput setaf 4)
 
 if [ "$image" = rancheros ]; then user=rancher; else user=root; fi
-if [ "$orchestrator" = xk3s ]; then prefix=k3s; else prefix=rancher; fi
+if [ "$orchestrator" = k3s ]; then prefix=k3s; else prefix=rancher; fi
 
 #better error checking
 command -v doctl >/dev/null 2>&1 || { echo "$RED" " ** Doctl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
@@ -89,122 +86,19 @@ doctl compute domain records create $domain --record-type CNAME --record-name "*
 echo "$GREEN" "ok" "$NORMAL"
 
 #host modifications and Docker install
-if [[ "$image" == *"centos"* ]]; then
-  echo -n " updating the os and installing docker "
-  pdsh -l $user -w $host_list 'setenforce 0; sed -i s/best=True/best=False/g /etc/dnf/dnf.conf; yum update -y; yum install -y yum-utils; yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo; yum install docker-ce -y; systemctl start docker; systemctl enable docker' > /dev/null 2>&1
-  echo "$GREEN" "ok" "$NORMAL"
-fi
-
 if [[ "$image" = *"ubuntu"* ]]; then
-  echo -n " updating the os and installing docker "
-  pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker; #apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
+  echo -n " updating the os "
+  pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
   #$(lsb_release -cs)
-  echo "$GREEN" "ok" "$NORMAL"
-fi
-
-#kernel tuning
-echo -n " updating kernel settings "
-pdsh -l $user -w $host_list 'cat << EOF >> /etc/sysctl.conf
-# SWAP settings
-vm.swappiness=0
-vm.overcommit_memory=1
-
-# Have a larger connection range available
-net.ipv4.ip_local_port_range=1024 65000
-
-# Increase max connection
-net.core.somaxconn = 10000
-
-# Reuse closed sockets faster
-net.ipv4.tcp_tw_reuse=1
-net.ipv4.tcp_fin_timeout=15
-
-# The maximum number of "backlogged sockets".  Default is 128.
-net.core.somaxconn=4096
-net.core.netdev_max_backlog=4096
-
-# 16MB per socket - which sounds like a lot,
-# but will virtually never consume that much.
-net.core.rmem_max=16777216
-net.core.wmem_max=16777216
-
-# Various network tunables
-net.ipv4.tcp_max_syn_backlog=20480
-net.ipv4.tcp_max_tw_buckets=400000
-net.ipv4.tcp_no_metrics_save=1
-net.ipv4.tcp_rmem=4096 87380 16777216
-net.ipv4.tcp_syn_retries=2
-net.ipv4.tcp_synack_retries=2
-net.ipv4.tcp_wmem=4096 65536 16777216
-
-# ARP cache settings for a highly loaded docker swarm
-net.ipv4.neigh.default.gc_thresh1=8096
-net.ipv4.neigh.default.gc_thresh2=12288
-net.ipv4.neigh.default.gc_thresh3=16384
-
-# ip_forward and tcp keepalive for iptables
-net.ipv4.tcp_keepalive_time=600
-net.ipv4.ip_forward=1
-
-# monitor file system events
-fs.inotify.max_user_instances=8192
-fs.inotify.max_user_watches=1048576
-EOF
-sysctl -p' > /dev/null 2>&1
-echo "$GREEN" "ok" "$NORMAL"
-
-#docker daemon configs
-echo -n " adding daemon configs "
-pdsh -l $user -w $host_list 'echo -e "{\n \"selinux-enabled\": false, \n \"log-driver\": \"json-file\", \n \"log-opts\": {\"max-size\": \"10m\", \"max-file\": \"3\"} \n}" > /etc/docker/daemon.json; systemctl restart docker'
-echo "$GREEN" "ok" "$NORMAL"
-
-#deploy Rancher
-if [ "$orchestrator" = rancher ]; then
-  echo -n " starting rancher server "
-  ssh $user@$server "docker run -d -p 80:80 -p 443:443 --restart=unless-stopped rancher/rancher" > /dev/null 2>&1
-
-  until curl $server:443 > /dev/null 2>&1; do echo -n .; sleep 2; done
-  echo "$GREEN" "ok" "$NORMAL"
-
-  echo -n " setting up rancher server "
-  until [ "$token" != "" ]; do 
-    token=$(curl -sk https://$server/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"admin"}'| jq -r .token) > /dev/null 2>&1
-  done
-
-  curl -sk https://$server/v3/users?action=changepassword -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"currentPassword":"admin","newPassword":"'$password'"}'  > /dev/null 2>&1 
-  
-  api_token=$(curl -sk https://$server/v3/token -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"token","description":"automation"}' | jq -r .token)
-  echo $api_token > api_token
-  
-  curl -sk https://$server/v3/settings/server-url -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"name":"server-url","value":"https://'$server'"}'  > /dev/null 2>&1
-  
-  curl -sk https://$server/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
-  echo "$GREEN" "ok" "$NORMAL"
-
-  echo -n " attaching agents "
-  agent_list=$(sed -n 2,"$num"p hosts.txt|awk '{printf $1","}')
-
-  # Create cluster
-  clusterid=$(curl -sk https://$server/v3/cluster -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -d '{"type":"cluster","nodes":[],"rancherKubernetesEngineConfig":{"ignoreDockerVersion":true},"name":"rancher"}' | jq -r .id )
-
-  # Generate token (clusterRegistrationToken) and extract nodeCommand
-  agent_command=$(curl -sk https://$server/v3/clusterregistrationtoken -H 'content-type: application/json' -H "Authorization: Bearer $api_token" --data-binary '{"type":"clusterRegistrationToken","clusterId":"'$clusterid'"}' | jq -r .nodeCommand)
-
-  ssh $user@$server "$agent_command --etcd --controlplane --worker" > /dev/null 2>&1
-  pdsh -l $user -w $agent_list "$agent_command --worker" > /dev/null 2>&1
-  echo "$GREEN" "ok" "$NORMAL"
-
-  echo -n " setting up kubectl "
-  curl -sk https://$server/v3/clusters/$clusterid?action=generateKubeconfig -X POST -H 'accept: application/json' -H "Authorization: Bearer $api_token" | jq -r .config > ~/.kube/config
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
 #or deploy k3s
 if [ "$orchestrator" = k3s ]; then
-  echo -n " setting up k3s cluster "
-  k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik docker' --cluster  > /dev/null 2>&1
-  k3sup join --ip $worker1 --server-ip $server --user $user --k3s-extra-args 'docker' > /dev/null 2>&1
-  k3sup join --ip $worker2 --server-ip $server --user $user --k3s-extra-args 'docker' > /dev/null 2>&1
+  echo -n " deploying k3s "
+  k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik' --cluster  > /dev/null 2>&1
+  k3sup join --ip $worker1 --server-ip $server --user $user  > /dev/null 2>&1
+  k3sup join --ip $worker2 --server-ip $server --user $user  > /dev/null 2>&1
   mv kubeconfig ~/.kube/config
   echo "$GREEN" "ok" "$NORMAL"
 fi
@@ -291,15 +185,15 @@ function demo () {
   echo -n "  - struts ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   echo -n "  - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   
-  echo -n "  - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -n "  - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   echo -n "  - creating jenkins api token "
   curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_API_TOKEN
   echo "$GREEN""ok" "$NORMAL"
   
   echo -n "  - linkerd "; 
-  #linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
+  linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
 
   echo -n "  - prometheus "
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/prometheus.yml > /dev/null 2>&1
