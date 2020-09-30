@@ -15,7 +15,8 @@ size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
-image=ubuntu-20-04-x64
+#image=ubuntu-20-04-x64
+image=debian-10-x64
 #image=rancheros
 orchestrator=k3s
 
@@ -88,8 +89,15 @@ echo "$GREEN" "ok" "$NORMAL"
 
 #host modifications and Docker install
 if [[ "$image" = *"ubuntu"* ]]; then
-  echo -n " updating the os "
+  echo -n " adding os packaages "
   pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
+  #$(lsb_release -cs)
+  echo "$GREEN" "ok" "$NORMAL"
+fi
+
+if [[ "$image" = *"debian"* ]]; then
+  echo -n " adding os packaages "
+  pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt upgrade -y; apt install curl -y open-iscsi' > /dev/null 2>&1
   #$(lsb_release -cs)
   echo "$GREEN" "ok" "$NORMAL"
 fi
@@ -104,10 +112,7 @@ if [ "$orchestrator" = k3s ]; then
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
-echo " - install complete -"
-echo ""
-
-status
+echo " - complete -"
 }
 
 ################################ longhorn ##############################
@@ -117,6 +122,8 @@ function longhorn () {
   kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
   if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
 
+  sleep 2
+  
   #wait for longhorn to initiaize
   until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ]; do echo -n "." ; sleep 2; done
   echo "$GREEN" "ok" "$NORMAL"
@@ -209,6 +216,13 @@ function demo () {
   # Modify network policies to allow ingress
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_prometheus.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
+
+  echo -n "  - openfaas "
+  kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml
+  kubectl -n openfaas create secret generic basic-auth --from-literal=basic-auth-user=admin --from-literal=basic-auth-password="$password"
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/openfass.yml > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/openfaas_traefik.yml  > /dev/null 2>&1
+  echo "$GREEN""ok" "$NORMAL"
 } 
 
 ############################## kill ################################
@@ -238,15 +252,9 @@ function full () {
 ############################# status ################################
 function status () {
   echo " --- Cluster ---"
-  doctl compute droplet list --no-header|grep $prefix
+  #doctl compute droplet list --no-header|grep $prefix
+  kubectl get node -o wide
   echo ""
-
-  if [ "$orchestrator" = rancher ]; then
-    echo " - Rancher  : https://rancher.$domain"
-    echo " - username : admin"
-    echo " - password : "$password
-    echo ""
-  fi
 }
 
 ############################# usage ################################
