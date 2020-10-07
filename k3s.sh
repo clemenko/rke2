@@ -19,7 +19,7 @@ image=ubuntu-20-04-x64
 #image=debian-10-x64
 
 orchestrator=k3s
-
+k3s_channel=latest
 
 #stackrox automation.
 stackrox_lic="stackrox.lic"
@@ -104,9 +104,9 @@ fi
 #or deploy k3s
 if [ "$orchestrator" = k3s ]; then
   echo -n " deploying k3s "
-  k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik' --cluster --k3s-channel latest --local-path ~/.kube/config > /dev/null 2>&1
-  k3sup join --ip $worker1 --server-ip $server --user $user --k3s-channel latest > /dev/null 2>&1
-  k3sup join --ip $worker2 --server-ip $server --user $user --k3s-channel latest > /dev/null 2>&1
+  k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik' --cluster --k3s-channel $k3s_channel --local-path ~/.kube/config > /dev/null 2>&1
+  k3sup join --ip $worker1 --server-ip $server --user $user --k3s-channel $k3s_channel > /dev/null 2>&1
+  k3sup join --ip $worker2 --server-ip $server --user $user --k3s-channel $k3s_channel > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
