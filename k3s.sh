@@ -17,8 +17,9 @@ domain=dockr.life
 
 image=ubuntu-20-04-x64
 #image=debian-10-x64
-#image=k3sos
+
 orchestrator=k3s
+
 
 #stackrox automation.
 stackrox_lic="stackrox.lic"
@@ -103,10 +104,9 @@ fi
 #or deploy k3s
 if [ "$orchestrator" = k3s ]; then
   echo -n " deploying k3s "
-  k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik' --cluster  > /dev/null 2>&1
-  k3sup join --ip $worker1 --server-ip $server --user $user  > /dev/null 2>&1
-  k3sup join --ip $worker2 --server-ip $server --user $user  > /dev/null 2>&1
-  mv kubeconfig ~/.kube/config
+  k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik' --cluster --k3s-channel latest --local-path ~/.kube/config > /dev/null 2>&1
+  k3sup join --ip $worker1 --server-ip $server --user $user --k3s-channel latest > /dev/null 2>&1
+  k3sup join --ip $worker2 --server-ip $server --user $user --k3s-channel latest > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
