@@ -19,7 +19,7 @@ image=ubuntu-20-04-x64
 #image=debian-10-x64
 
 orchestrator=k3s
-k3s_channel=latest
+k3s_channel=stable #stable
 
 #stackrox automation.
 stackrox_lic="stackrox.lic"
