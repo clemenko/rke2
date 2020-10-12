@@ -18,8 +18,8 @@ domain=dockr.life
 #image=centos-7-x64
 image=ubuntu-20-04-x64
 
-orchestrator=k3s
-#orchestrator=rancher
+#orchestrator=k3s
+orchestrator=rancher
 
 #stackrox automation.
 stackrox_lic="stackrox.lic"
@@ -161,13 +161,13 @@ echo "$GREEN" "ok" "$NORMAL"
 #deploy Rancher
 if [ "$orchestrator" = rancher ]; then
   echo -n " starting rancher server "
-  ssh $user@$server "docker run -d -p 80:80 -p 443:443 --restart=unless-stopped rancher/rancher" > /dev/null 2>&1
+  ssh $user@$server "docker run -d -p 80:80 -p 443:443 --privileged --restart=unless-stopped rancher/rancher" > /dev/null 2>&1
 
   until curl $server:443 > /dev/null 2>&1; do echo -n .; sleep 2; done
   echo "$GREEN" "ok" "$NORMAL"
 
   echo -n " setting up rancher server "
-  until [ "$token" != "" ]; do 
+  until [ "$token" != "" ] && [ "$token" != null ]; do 
     token=$(curl -sk https://$server/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"admin"}'| jq -r .token) > /dev/null 2>&1
   done
 

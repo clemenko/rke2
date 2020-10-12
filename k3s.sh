@@ -19,7 +19,7 @@ image=ubuntu-20-04-x64
 #image=debian-10-x64
 
 orchestrator=k3s
-k3s_channel=stable #stable
+k3s_channel=latest #stable
 
 #stackrox automation.
 stackrox_lic="stackrox.lic"
@@ -91,7 +91,7 @@ echo "$GREEN" "ok" "$NORMAL"
 #host modifications and Docker install
 if [[ "$image" = *"ubuntu"* ]]; then
   echo -n " adding os packages "
-  pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; #apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -116,7 +116,12 @@ echo " - complete -"
 ################################ longhorn ##############################
 function longhorn () {
   echo -n  "  - longhorn "
-  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
+  #kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
+
+  #fix 
+  curl -s https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml | sed -e 's/#- name: KUBELET_ROOT_DIR/- name: KUBELET_ROOT_DIR/g' -e 's$#  value: /var/lib/rancher/k3s/agent/kubelet$  value: /var/lib/kubelet$g' | kubectl apply -f - > /dev/null 2>&1
+
+
   kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
   if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
 
