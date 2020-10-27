@@ -24,11 +24,11 @@ peace.
 
 ## k3s
 
-Specifically this script is designed to be as fast as possible. Here is an [asciienma recording](https://asciinema.org/a/Gc4euwyDfFpICM3ZQ1jcnlqCG).
+Specifically this script is designed to be as fast as possible. How about an asciinema recording.
 
-[![asciicast](https://asciinema.org/a/Gc4euwyDfFpICM3ZQ1jcnlqCG.png)](https://asciinema.org/a/Gc4euwyDfFpICM3ZQ1jcnlqCG?autoplay=1)
+[![asciicast](https://asciinema.org/a/mGh0936Gl8pmbNkZYFFpKbt6X.png)](https://asciinema.org/a/mGh0936Gl8pmbNkZYFFpKbt6X?autoplay=1)
 
 
 ## Rancher
 
-This script is for a more production ready approach with Rancher and Ubuntu.
+This script is for a more production ready approach with Rancher and Ubuntu. - Needs to be updated. ;)
