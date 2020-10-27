@@ -24,9 +24,9 @@ peace.
 
 ## k3s
 
-Specifically this script is designed to be as fast as possible. How about an asciinema recording.
+Specifically this script is designed to be as fast as possible. How about a recording?
 
-[![asciicast](https://asciinema.org/a/mGh0936Gl8pmbNkZYFFpKbt6X.png)](https://asciinema.org/a/mGh0936Gl8pmbNkZYFFpKbt6X?autoplay=1)
+[![ DigitalOcean, Ubuntu, K3s, and StackRox in under 6 minutes. Full Stack - asciinema ](https://asciinema.org/a/mGh0936Gl8pmbNkZYFFpKbt6X.png)](https://asciinema.org/a/mGh0936Gl8pmbNkZYFFpKbt6X?autoplay=1)
 
 
 ## Rancher
