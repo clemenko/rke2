@@ -2,16 +2,19 @@
 
 Both these scripts are meant to simplify the building of a demo stack for StackRox. With both you will get :
 
-- DigitalOcean
-- Debian
-- K3s
-- Longhorn
-- Traefik
-- Jenkins
-- Prometheus
-- Grafana
-- Openfaas
-- StackRox
+- [DigitalOcean](digitalocean.com) - VMs
+- [Ubuntu](ubuntu.com) - OS
+- [K3s](k3s.io) - Kubernetes
+- [Longhorn](longhorn.io) - Stateful storage
+- [Traefik](traefik.io) - Ingress
+- [Jenkins](jenkins.io) - CI/CD
+- [Prometheus](prometheus.io) - Metrics
+- [Grafana](grafana.com) - Graphing
+- [Openfaas](openfaas.com) - Serverless
+- [StackRox](stackrox.com) - Security
+- [Linkerd](linkerd.io) - Service Mesh
+- [KeyCloak](keycloak.org) - Authentication
+- [Harbor](goharbor.io) - Registry
 
 Please pay attention to the variables at the stop of the scripts.
 
