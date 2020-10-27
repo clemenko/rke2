@@ -190,6 +190,7 @@ function rox () {
 ############################# demo ################################
 function demo () {
   command -v linkerd >/dev/null 2>&1 || { echo "$RED" " ** Linkerd was not found. Please install ** " "$NORMAL" >&2; exit 1; }
+  command -v helm >/dev/null 2>&1 || { echo "$RED" " ** Helm was not found. Please install ** " "$NORMAL" >&2; exit 1; }
 
   #echo -n "  - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   #echo -n "  - elk ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/elk.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
@@ -230,6 +231,12 @@ function demo () {
   kubectl -n openfaas create secret generic basic-auth --from-literal=basic-auth-user=admin --from-literal=basic-auth-password="$password" > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/openfass.yml > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/openfaas_traefik.yml  > /dev/null 2>&1
+  echo "$GREEN""ok" "$NORMAL"
+
+  echo -n "  - harbor "
+  kubectl create ns harbor > /dev/null 2>&1
+  helm install harbor -n harbor --set expose.tls.auto.commonName=harbor.dockr.life,expose.type=loadBalancer,harborAdminPassword=Pa22word harbor/harbor > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/harbor_traefik_ingress.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 } 
 
