@@ -26,6 +26,8 @@ peace.
 
 Specifically this script is designed to be as fast as possible. Here is an [asciienma recording](https://asciinema.org/a/Gc4euwyDfFpICM3ZQ1jcnlqCG).
 
+[![asciicast]](https://asciinema.org/a/Gc4euwyDfFpICM3ZQ1jcnlqCG)
+
 ## Rancher
 
 This script is for a more production ready approach with Rancher and Ubuntu.
