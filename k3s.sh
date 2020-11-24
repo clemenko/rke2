@@ -290,7 +290,7 @@ case "$1" in
         up) up;;
         kill) kill;;
         status) status;;
-        rox) rox;;
+        rox) up; rox;;
         demo) demo;;
         full) full;;
         *) usage;;
