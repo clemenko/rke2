@@ -15,6 +15,7 @@ Both these scripts are meant to simplify the building of a demo stack for StackR
 - [Linkerd](http://linkerd.io) - Service Mesh
 - [KeyCloak](http://keycloak.org) - Authentication
 - [Harbor](http://goharbor.io) - Registry
+- [Code Server](https://github.com/cdr/code-server) - Web IDE
 
 Please pay attention to the variables at the stop of the scripts.
 

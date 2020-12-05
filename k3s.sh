@@ -133,8 +133,6 @@ function longhorn () {
 
 ################################ rox ##############################
 function rox () {
-  echo " deploying :"
-
 # ensure no central-bundle is not present
   if [ -d central-bundle ]; then
     echo "$RED" "Warning - cental-bundle already detected..." "$NORMAL"
@@ -144,6 +142,8 @@ function rox () {
 # check for credentials for help.stackrox.com 
   if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
 
+  echo " deploying :"
+  
 # non-pvc # roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
 # deploy traefik
@@ -233,6 +233,10 @@ function demo () {
   echo -n "  - harbor "
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/harbor_traefik_ingress.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
+
+  echo -n "  - code-server "
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/code-server.yml > /dev/null 2>&1
+  echo "$GREEN""ok" "$NORMAL"
 } 
 
 ############################## kill ################################
@@ -290,7 +294,7 @@ case "$1" in
         up) up;;
         kill) kill;;
         status) status;;
-        rox) up; rox;;
+        rox) rox;;
         demo) demo;;
         full) full;;
         *) usage;;
