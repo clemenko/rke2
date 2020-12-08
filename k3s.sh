@@ -189,8 +189,7 @@ function rox () {
 function demo () {
   command -v linkerd >/dev/null 2>&1 || { echo "$RED" " ** Linkerd was not found. Please install ** " "$NORMAL" >&2; exit 1; }
 
-  #echo -n "  - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
-  #echo -n "  - elk ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/elk.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -n "  - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - keycloak ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
@@ -238,7 +237,6 @@ function demo () {
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/code-server.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 } 
-
 ############################## kill ################################
 #remove the vms
 function kill () {
