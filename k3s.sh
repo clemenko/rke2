@@ -128,6 +128,7 @@ function longhorn () {
 
   #wait for longhorn to initiaize
   until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ] && [ "$(kubectl get pod -n longhorn-system | wc -l)" -gt 20 ] ; do echo -n "." ; sleep 2; done
+  # testing out ` kubectl wait --for condition=containersready -n longhorn-system pod --all`
   echo "$GREEN" "ok" "$NORMAL"
 }
 
@@ -202,10 +203,10 @@ function demo () {
   curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_API_TOKEN
   echo "$GREEN""ok" "$NORMAL"
   
-  #echo -n "  - linkerd "; 
-  #linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
-  #echo "$GREEN""ok" "$NORMAL"
+  echo -n "  - linkerd "; 
+  linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
+  echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - prometheus/grafana "
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/prometheus.yml > /dev/null 2>&1
