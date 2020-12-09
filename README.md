@@ -11,7 +11,7 @@ Both these scripts are meant to simplify the building of a demo stack for StackR
 - [Prometheus](http://prometheus.io) - Metrics
 - [Grafana](http://grafana.com) - Graphing
 - [Openfaas](http://openfaas.com) - Serverless
-- [Graylog](http://https://www.graylog.org) - Loging
+- [Graylog](http://https://www.graylog.org) - Logging
 - [StackRox](http://stackrox.com) - Security
 - [Linkerd](http://linkerd.io) - Service Mesh
 - [KeyCloak](http://keycloak.org) - Authentication
