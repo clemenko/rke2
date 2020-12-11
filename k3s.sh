@@ -204,8 +204,8 @@ function demo () {
   echo "$GREEN""ok" "$NORMAL"
   
   echo -n "  - linkerd "; 
-  linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
+  #linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
+  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - prometheus/grafana "
