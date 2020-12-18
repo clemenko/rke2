@@ -97,7 +97,7 @@ fi
 
 if [[ "$image" = *"debian"* ]]; then
   echo -n " adding os packages "
-  pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; #apt upgrade -y; apt install curl -y open-iscsi' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt upgrade -y; apt install curl -y open-iscsi' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -116,19 +116,20 @@ echo " - complete -"
 ################################ longhorn ##############################
 function longhorn () {
   echo -n  "  - longhorn "
-  #kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
 
   #fix 
-  curl -s https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml | sed -e 's/#- name: KUBELET_ROOT_DIR/- name: KUBELET_ROOT_DIR/g' -e 's$#  value: /var/lib/rancher/k3s/agent/kubelet$  value: /var/lib/kubelet$g' | kubectl apply -f - > /dev/null 2>&1
+  #curl -s https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml | sed -e 's/#- name: KUBELET_ROOT_DIR/- name: KUBELET_ROOT_DIR/g' -e 's$#  value: /var/lib/rancher/k3s/agent/kubelet$  value: /var/lib/kubelet$g' | kubectl apply -f - > /dev/null 2>&1
 
-  kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
-  if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
-
-  sleep 2; 
+  sleep 5
 
   #wait for longhorn to initiaize
   until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ] && [ "$(kubectl get pod -n longhorn-system | wc -l)" -gt 20 ] ; do echo -n "." ; sleep 2; done
   # testing out ` kubectl wait --for condition=containersready -n longhorn-system pod --all`
+
+  kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
+  if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
+
   echo "$GREEN" "ok" "$NORMAL"
 }
 
@@ -204,8 +205,8 @@ function demo () {
   echo "$GREEN""ok" "$NORMAL"
   
   echo -n "  - linkerd "; 
-  linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
+  #linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
+  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - prometheus/grafana "
