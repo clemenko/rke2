@@ -19,6 +19,7 @@ image=ubuntu-20-04-x64
 #image=debian-10-x64
 
 orchestrator=k3s
+#orchestrator=rke
 k3s_channel=latest #stable
 
 #stackrox automation.
@@ -79,8 +80,7 @@ echo "$GREEN" "ok" "$NORMAL"
 #get ips
 host_list=$(awk '{printf $1","}' hosts.txt|sed 's/,$//')
 server=$(sed -n 1p hosts.txt|awk '{print $1}')
-worker1=$(sed -n 2p hosts.txt|awk '{printf $1}')
-worker2=$(sed -n 3p hosts.txt|awk '{printf $1}')
+worker_list=$(sed 1d hosts.txt| awk '{printf $1","}'|sed 's/,$//')
 
 #update DNS
 echo -n " updating dns"
@@ -105,8 +105,28 @@ fi
 if [ "$orchestrator" = k3s ]; then
   echo -n " deploying k3s "
   k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik' --cluster --k3s-channel $k3s_channel --local-path ~/.kube/config > /dev/null 2>&1
-  k3sup join --ip $worker1 --server-ip $server --user $user --k3s-channel $k3s_channel > /dev/null 2>&1
-  k3sup join --ip $worker2 --server-ip $server --user $user --k3s-channel $k3s_channel > /dev/null 2>&1
+
+  for workeri in $(awk '{print $1}' hosts.txt |sed 1d); do 
+    k3sup join --ip $workeri --server-ip $server --user $user --k3s-channel $k3s_channel > /dev/null 2>&1
+  done
+
+  echo "$GREEN" "ok" "$NORMAL"
+fi
+
+#or deploy rke
+if [ "$orchestrator" = rke ]; then
+  echo -n " deploying rke2 "
+  ssh $user@$server 'curl -sfL https://get.rke2.io | RKE2_AGENT_TOKEN=stackroxftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
+
+  sleep 10
+
+  token=$(ssh $user@$server 'cat /var/lib/rancher/rke2/server/node-token')
+
+  pdsh -l $user -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE=agent sh - && systemctl enable rke2-agent.service && mkdir -p /etc/rancher/rke2/ && echo "server: https://'$server':9345" > /etc/rancher/rke2/config.yaml && echo "token: '$token'" >> /etc/rancher/rke2/config.yaml && systemctl start rke2-agent.service'
+
+  rsync -avP $user@$server:/etc/rancher/rke2/rke2.yaml ~/.kube/config
+  sed -i'' -e "s/127.0.0.1/$server/g" ~/.kube/config
+
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -249,7 +269,8 @@ if [ -f hosts.txt ]; then
   for i in $(awk '{print $1}' hosts.txt); do ssh-keygen -q -R $i > /dev/null 2>&1; done
   for i in $(doctl compute domain records list dockr.life|grep 'k3s\|k3s'|awk '{print $1}'); do doctl compute domain records delete -f dockr.life $i; done
 
-  rm -rf *.txt *.log *.zip *.pem *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN
+  rm -rf *.txt *.log *.zip *.pem *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN 
+
 else
   echo -n " no hosts file found "
 fi
