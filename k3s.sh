@@ -17,6 +17,7 @@ domain=dockr.life
 
 image=ubuntu-20-04-x64
 #image=debian-10-x64
+#image=centos-8-x64
 
 orchestrator=k3s
 #orchestrator=rke
@@ -98,6 +99,12 @@ fi
 if [[ "$image" = *"debian"* ]]; then
   echo -n " adding os packages "
   pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt upgrade -y; apt install curl -y open-iscsi' > /dev/null 2>&1
+  echo "$GREEN" "ok" "$NORMAL"
+fi
+
+if [[ "$image" = *"centos"* ]]; then
+  echo -n " adding os packages "
+  pdsh -l $user -w $host_list 'yum update -y && yum install -y iscsi-initiator-utils' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
