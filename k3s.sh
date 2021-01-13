@@ -115,7 +115,8 @@ if [ "$orchestrator" = k3s ]; then
 
   for workeri in $(awk '{print $1}' hosts.txt |sed 1d); do 
     k3sup join --ip $workeri --server-ip $server --user $user --k3s-channel $k3s_channel > /dev/null 2>&1
-  done
+    rsync -avP ~/.kube/config $user@$workeri:/opt/kube_config > /dev/null 2>&1
+  done 
 
   echo "$GREEN" "ok" "$NORMAL"
 fi
