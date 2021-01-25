@@ -115,7 +115,7 @@ if [ "$orchestrator" = k3s ]; then
 
   for workeri in $(awk '{print $1}' hosts.txt |sed 1d); do 
     k3sup join --ip $workeri --server-ip $server --user $user --k3s-channel $k3s_channel > /dev/null 2>&1
-    rsync -avP ~/.kube/config $user@$workeri:/opt/kube_config > /dev/null 2>&1
+#    rsync -avP ~/.kube/config $user@$workeri:/opt/kube_config > /dev/null 2>&1
   done 
 
   echo "$GREEN" "ok" "$NORMAL"
@@ -186,7 +186,7 @@ function rox () {
 
   echo -n  "  - stackrox "  
 # generate stackrox yaml
-  roxctl central generate k8s pvc --storage-class longhorn --size 30 --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+  roxctl central generate k8s pvc --storage-class longhorn --size 30 --license stackrox.lic --enable-telemetry=false --lb-type np --password $password --plaintext-endpoints=http@8080 > /dev/null 2>&1
 
 # setup and install central
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
