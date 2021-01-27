@@ -238,9 +238,6 @@ function longhorn () {
   echo -n  "  - longhorn "
   kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
 
-  #fix 
-  #curl -s https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml | sed -e 's/#- name: KUBELET_ROOT_DIR/- name: KUBELET_ROOT_DIR/g' -e 's$#  value: /var/lib/rancher/k3s/agent/kubelet$  value: /var/lib/kubelet$g' | kubectl apply -f - > /dev/null 2>&1
-
   sleep 5
 
   #wait for longhorn to initiaize
@@ -278,7 +275,7 @@ function rox () {
 
   echo -n  "  - stackrox "  
 # generate stackrox yaml
-  roxctl central generate k8s pvc --storage-class longhorn --size 30 --license stackrox.lic --enable-telemetry=false --lb-type np --password $password --plaintext-endpoints=http@8080 > /dev/null 2>&1
+  roxctl central generate k8s pvc --storage-class longhorn --size 30 --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
 # setup and install central
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
