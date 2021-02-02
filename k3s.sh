@@ -230,6 +230,10 @@ if [ "$orchestrator" = rancher ]; then
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
+echo -n " - waiting for cluster to be active"
+until [ $(kubectl get node|grep NotReady|wc -l) = 0 ]; do echo -n "."; sleep 2; done
+echo "$GREEN" "ok" "$NORMAL"
+
 echo " - complete -"
 }
 
@@ -250,6 +254,16 @@ function longhorn () {
   echo "$GREEN" "ok" "$NORMAL"
 }
 
+
+################################ traefik ##############################
+function traefik () {
+  echo -n  "  - traefik "
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
+  echo "$GREEN" "ok" "$NORMAL"
+}
+
+
 ################################ rox ##############################
 function rox () {
 # ensure no central-bundle is not present
@@ -266,9 +280,7 @@ function rox () {
 # non-pvc # roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
 # deploy traefik
-  echo -n  "  - traefik"
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
-  echo "$GREEN" "ok" "$NORMAL"
+  traefik
 
 # deploy longhorn
   longhorn
@@ -376,9 +388,10 @@ echo "$GREEN" "ok" "$NORMAL"
 }
 
 ############################# full ################################
-function full () {
+function simple () {
   if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
-  up; rox; demo
+  up
+  rox
 }
 
 ############################# status ################################
@@ -415,7 +428,7 @@ case "$1" in
         status) status;;
         rox) rox;;
         demo) demo;;
-        full) full;;
-        simple) up && rox;;
+        full) simple && demo;;
+        simple) simple;;
         *) usage;;
 esac
