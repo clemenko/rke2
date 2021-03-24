@@ -66,13 +66,13 @@ for i in $(seq 1 $num); do
 done
 
 #build VMS
-echo -n " building vms - $build_list "
+echo -n " building vms - $build_list"
 doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --tag-name k8s:worker --wait > /dev/null 2>&1
 doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'> hosts.txt
 echo "$GREEN" "ok" "$NORMAL"
 
 #check for SSH
-echo -n " checking for ssh "
+echo -n " checking for ssh"
 for ext in $(awk '{print $1}' hosts.txt); do
   until [ $(ssh -o ConnectTimeout=1 $user@$ext 'exit' 2>&1 | grep 'timed out\|refused' | wc -l) = 0 ]; do echo -n "." ; sleep 5; done
 done
@@ -91,25 +91,25 @@ echo "$GREEN" "ok" "$NORMAL"
 
 #host modifications and Docker install
 if [[ "$image" = *"ubuntu"* ]]; then
-  echo -n " adding os packages "
+  echo -n " adding os packages"
   pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; #apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
 if [[ "$image" = *"debian"* ]]; then
-  echo -n " adding os packages "
+  echo -n " adding os packages"
   pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt upgrade -y; apt install curl -y open-iscsi' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
 if [[ "$image" = *"centos"* ]]; then
-  echo -n " adding os packages "
+  echo -n " adding os packages"
   pdsh -l $user -w $host_list 'yum update -y && yum install -y iscsi-initiator-utils' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
 #kernel tuning
-echo -n " updating kernel settings "
+echo -n " updating kernel settings"
 pdsh -l $user -w $host_list 'cat << EOF >> /etc/sysctl.conf
 # SWAP settings
 vm.swappiness=0
@@ -161,7 +161,7 @@ echo "$GREEN" "ok" "$NORMAL"
 
 #or deploy k3s
 if [ "$orchestrator" = k3s ]; then
-  echo -n " deploying k3s "
+  echo -n " deploying k3s"
   k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik' --cluster --k3s-channel $k3s_channel --local-path ~/.kube/config > /dev/null 2>&1
 
   for workeri in $(awk '{print $1}' hosts.txt |sed 1d); do 
@@ -230,11 +230,9 @@ if [ "$orchestrator" = rancher ]; then
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
-echo -n " - waiting for cluster to be active"
+echo -n " - cluster to be active"
 until [ $(kubectl get node|grep NotReady|wc -l) = 0 ]; do echo -n "."; sleep 2; done
 echo "$GREEN" "ok" "$NORMAL"
-
-echo " - complete -"
 }
 
 ################################ longhorn ##############################
