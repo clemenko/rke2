@@ -303,7 +303,7 @@ function rox () {
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
 
 # ask central for a sensor bundle
-  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module --admission-controller-listen-on-updates --create-admission-controller -p $password > /dev/null 2>&1
+  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password > /dev/null 2>&1
 
 # install sensors
   ./sensor-k3s/sensor.sh > /dev/null 2>&1
