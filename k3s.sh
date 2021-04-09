@@ -285,7 +285,7 @@ function rox () {
 
   echo -n  "  - stackrox "  
 # generate stackrox yaml
-  roxctl central generate k8s pvc --storage-class longhorn --size 30 --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+  roxctl central generate k8s pvc --storage-class longhorn --size 30 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
 # setup and install central
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
