@@ -24,7 +24,6 @@ orchestrator=k3s
 k3s_channel=latest #stable
 
 #stackrox automation.
-stackrox_lic="stackrox.lic"
 export REGISTRY_USERNAME=andy@stackrox.com
 
 # Please set this before runing the script.
@@ -385,7 +384,7 @@ fi
 echo "$GREEN" "ok" "$NORMAL"
 }
 
-############################# full ################################
+############################# simple ################################
 function simple () {
   if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
   up
@@ -405,15 +404,13 @@ function usage () {
   echo ""
   echo "-------------------------------------------------"
   echo ""
-  echo " Usage: $0 {up|kill|rox|status|demo|full}"
+  echo " Usage: $0 {up|kill|rox|demo|full}"
   echo ""
   echo " ./k3s.sh up # build the vms "
-  echo " ./k3s.sh rox # deploy the good stuff"
+  echo " ./k3s.sh rox # just the rox"
   echo " ./k3s.sh kill # kill the vms"
-  echo " ./k3s.sh status # get vm status"
   echo " ./k3s.sh demo # deploy demo apps"
   echo " ./k3s.sh full # full send"
-  echo " ./k3s.sh simple # just the rox"
   echo ""
   echo "-------------------------------------------------"
   echo ""
@@ -424,9 +421,8 @@ case "$1" in
         up) up;;
         kill) kill;;
         status) status;;
-        rox) rox;;
+        rox) simple;;
         demo) demo;;
         full) simple && demo;;
-        simple) simple;;
         *) usage;;
 esac
