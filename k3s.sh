@@ -61,14 +61,6 @@ if [ -f hosts.txt ]; then
   exit
 fi
 
-# get latest roxctl
-# for MacOS you may need to remove the quarentine for it
-# xattr -d com.apple.quarantine /usr/local/bin/roxctl
-echo -n " getting latest roxctl "
-  curl -#L https://mirror.openshift.com/pub/rhacs/assets/latest/bin/$roxOS/roxctl -o /usr/local/bin/roxctl > /dev/null 2>&1
-  chmod 755 /usr/local/bin/roxctl
-echo "$GREEN" "ok" "$NORMAL"
-
 #rando list generation
 for i in $(seq 1 $num); do
  uuid=$(uuid -v4| awk -F"-" '{print $4}')
@@ -283,10 +275,15 @@ function rox () {
 # check for credentials for help.stackrox.com 
   if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
 
-  echo " deploying :"
-  
-# non-pvc # roxctl central generate k8s none --license stackrox.lic --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+# get latest roxctl
+# for MacOS you may need to remove the quarentine for it
+# xattr -d com.apple.quarantine /usr/local/bin/roxctl
+  echo -n " getting latest roxctl "
+    curl -#L https://mirror.openshift.com/pub/rhacs/assets/latest/bin/$roxOS/roxctl -o /usr/local/bin/roxctl > /dev/null 2>&1
+    chmod 755 /usr/local/bin/roxctl
+  echo "$GREEN" "ok" "$NORMAL"
 
+  echo " deploying :"
 # deploy traefik
   traefik
 
