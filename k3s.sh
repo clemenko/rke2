@@ -29,6 +29,9 @@ export REGISTRY_USERNAME=andy@stackrox.com
 # Please set this before runing the script.
 #export REGISTRY_PASSWORD=
 
+# Linux or Darwin
+roxOS=Darwin
+
 ######  NO MOAR EDITS #######
 RED=$(tput setaf 1)
 GREEN=$(tput setaf 2)
@@ -57,6 +60,14 @@ if [ -f hosts.txt ]; then
   echo "$RED" "Warning - cluster already detected..." "$NORMAL"
   exit
 fi
+
+# get latest roxctl
+# for MacOS you may need to remove the quarentine for it
+# xattr -d com.apple.quarantine /usr/local/bin/roxctl
+echo -n " getting latest roxctl "
+  curl -#L https://mirror.openshift.com/pub/rhacs/assets/latest/bin/$roxOS/roxctl -o /usr/local/bin/roxctl > /dev/null 2>&1
+  chmod 755 /usr/local/bin/roxctl
+echo "$GREEN" "ok" "$NORMAL"
 
 #rando list generation
 for i in $(seq 1 $num); do
