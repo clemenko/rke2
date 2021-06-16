@@ -7,7 +7,7 @@
 ###################################
 # edit vars
 ###################################
-set -e
+#set -e
 num=3
 password=Pa22word
 zone=nyc3
@@ -25,6 +25,7 @@ k3s_channel=latest #stable
 
 #stackrox automation.
 export REGISTRY_USERNAME=andy@stackrox.com
+version=latest
 
 # Please set this before runing the script.
 #export REGISTRY_PASSWORD=
@@ -232,7 +233,7 @@ if [ "$orchestrator" = rancher ]; then
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
-echo -n " - cluster to be active"
+echo -n " - cluster active"
 until [ $(kubectl get node|grep NotReady|wc -l) = 0 ]; do echo -n "."; sleep 2; done
 echo "$GREEN" "ok" "$NORMAL"
 }
@@ -279,7 +280,7 @@ function rox () {
 # for MacOS you may need to remove the quarentine for it
 # xattr -d com.apple.quarantine /usr/local/bin/roxctl
   echo -n " getting latest roxctl "
-    curl -#L https://mirror.openshift.com/pub/rhacs/assets/latest/bin/$roxOS/roxctl -o /usr/local/bin/roxctl > /dev/null 2>&1
+    curl -#L https://mirror.openshift.com/pub/rhacs/assets/$version/bin/$roxOS/roxctl -o /usr/local/bin/roxctl > /dev/null 2>&1
     chmod 755 /usr/local/bin/roxctl
   echo "$GREEN" "ok" "$NORMAL"
 
@@ -310,7 +311,7 @@ function rox () {
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
 
 # ask central for a sensor bundle
-  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method kernel-module --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password > /dev/null 2>&1
+  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password > /dev/null 2>&1
 
 # install sensors
   ./sensor-k3s/sensor.sh > /dev/null 2>&1
@@ -326,8 +327,6 @@ function demo () {
   command -v linkerd >/dev/null 2>&1 || { echo "$RED" " ** Linkerd was not found. Please install ** " "$NORMAL" >&2; exit 1; }
 
   echo -n "  - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
-
-  echo -n "  - keycloak ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   echo -n "  - struts ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
@@ -355,7 +354,7 @@ function demo () {
   #kubectl -n stackrox patch svc/central -p '{"spec":{"ports":[{"name":"monitoring","port":9090,"protocol":"TCP","targetPort":9090}]}, "metadata":{"annotations":{"prometheus.io.scrape": "true", "prometheus.io/port": "9090"}}}' > /dev/null 2>&1
 
   # Modify network policies to allow ingress
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_prometheus.yml > /dev/null 2>&1
+  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_prometheus.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - openfaas "
@@ -373,6 +372,47 @@ function demo () {
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/code-server.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 } 
+
+################################ keycloak ##############################
+function keycloak () {
+  echo -n "  - keycloak ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -n "    - configuring all the things"
+
+  until [ $(kubectl get pod -n keycloak | grep -v 'Running\|NAME\|svclb' | wc -l) = 0 ] ; do echo -n "." ; sleep 2; done
+
+  sleep 30
+  
+  export KEY_URL=keycloak.dockr.life
+  export ROX_URL=stackrox.dockr.life
+
+  # get auth token - notice keycloak's password 
+  export key_token=$(curl -sk -X POST https://$KEY_URL/auth/realms/master/protocol/openid-connect/token -d 'client_id=admin-cli&username=admin&password='$password'&credentialId=&grant_type=password' | jq -r .access_token)
+
+  # add realm
+  curl -sk -X POST https://$KEY_URL/auth/admin/realms -H "authorization: Bearer $key_token" -H 'accept: application/json, text/plain, */*' -H 'content-type: application/json;charset=UTF-8' -d '{"enabled":true,"id":"stackrox","realm":"stackrox"}'
+
+  # add client
+  curl -sk -X POST https://$KEY_URL/auth/admin/realms/stackrox/clients -H "authorization: Bearer $key_token" -H 'accept: application/json, text/plain, */*' -H 'content-type: application/json;charset=UTF-8' -d '{"enabled":true,"attributes":{},"redirectUris":[],"clientId":"stackrox","protocol":"openid-connect","publicClient": false,"redirectUris":["https://'$ROX_URL'/sso/providers/oidc/callback"]}'
+  #,"implicitFlowEnabled":true
+
+  # get client id
+  export client_id=$(curl -sk  https://$KEY_URL/auth/admin/realms/stackrox/clients/ -H "authorization: Bearer $key_token"  | jq -r '.[] | select(.clientId=="stackrox") | .id')
+
+  # get client_secret
+  export client_secret=$(curl -sk  https://$KEY_URL/auth/admin/realms/stackrox/clients/$client_id/client-secret -H "authorization: Bearer $key_token" | jq -r .value)
+
+  # add keycloak user clemenko / Pa22word
+  curl -k 'https://keycloak.dockr.life/auth/admin/realms/stackrox/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":[],"credentials":[{"type":"password","value":"Pa22word","temporary":false}],"username":"clemenko","emailVerified":"","firstName":"Andy","lastName":"Clemenko"}' 
+
+  # config stackrox
+  export auth_id=$(curl -sk -X POST -u admin:$password https://$ROX_URL/v1/authProviders -d '{"type":"oidc","uiEndpoint":"'$ROX_URL'","enabled":true,"config":{"mode":"query","do_not_use_client_secret":"false","client_secret":"'$client_secret'","issuer":"https+insecure://'$KEY_URL'/auth/realms/stackrox","client_id":"stackrox"},"name":"stackrox"}' | jq -r .id)
+
+  # change default to Analyst
+  curl -sk -X POST -u admin:$password https://$ROX_URL/v1/groups -d '{"props":{"authProviderId":"'$auth_id'"},"roleName":"Analyst"}'
+
+  echo "$GREEN""ok" "$NORMAL"
+}
+
 ############################## kill ################################
 #remove the vms
 function kill () {
@@ -432,5 +472,6 @@ case "$1" in
         rox) simple;;
         demo) demo;;
         full) simple && demo;;
+        keycloak) keycloak;;
         *) usage;;
 esac
