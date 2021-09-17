@@ -15,7 +15,7 @@ size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
-image=ubuntu-20-04-x64
+image=ubuntu-20-10-x64
 #image=debian-10-x64
 #image=centos-8-x64
 
@@ -320,6 +320,11 @@ function rox () {
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
 
   echo "$GREEN" "ok" "$NORMAL"
+
+  echo -n "  - creating api token "
+  sleep 5
+  curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token > ROX_API_TOKEN
+  echo "$GREEN""ok" "$NORMAL"
 }
 
 ############################# demo ################################
@@ -332,11 +337,10 @@ function demo () {
   echo -n "  - struts ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   echo -n "  - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   
-  echo -n "  - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
-  echo -n "  - creating jenkins api token "
-  curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_API_TOKEN
+  echo -n "  - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1
+    curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_TOKEN
   echo "$GREEN""ok" "$NORMAL"
-  
+
   echo -n "  - linkerd "; 
   #linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
@@ -366,6 +370,10 @@ function demo () {
 
   echo -n "  - harbor "
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/harbor_traefik_ingress.yml > /dev/null 2>&1
+  echo "$GREEN""ok" "$NORMAL"
+  
+  echo -n "  - keycloak "
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - code-server "
