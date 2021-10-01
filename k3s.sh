@@ -7,7 +7,7 @@
 ###################################
 # edit vars
 ###################################
-#set -e
+set -e
 num=3
 password=Pa22word
 zone=nyc3
@@ -21,7 +21,7 @@ image=ubuntu-20-10-x64
 
 orchestrator=k3s
 #orchestrator=rke
-k3s_channel=latest #stable
+k3s_channel=stable # latest
 
 #stackrox automation.
 export REGISTRY_USERNAME=andy@stackrox.com
@@ -304,7 +304,7 @@ function rox () {
   rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
   
 # wait for central to be up
-  until [ $(curl -kIs https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
+  until [ $(curl -kIs --max-time 5 --connect-timeout 5 https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
   
 # setup and install scanner
   ./central-bundle/scanner/scripts/setup.sh > /dev/null 2>&1
