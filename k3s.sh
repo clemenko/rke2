@@ -19,7 +19,7 @@ image=ubuntu-20-10-x64
 #image=debian-10-x64
 #image=centos-8-x64
 
-orchestrator=k3s # no rke k3s rancher
+orchestrator=rke # no rke k3s rancher
 docker=no
 k3s_channel=stable # latest
 
@@ -183,7 +183,7 @@ fi
 #or deploy rke
 if [ "$orchestrator" = rke ]; then
   echo -n " deploying rke2 "
-  ssh $user@$server 'mkdir -p /etc/rancher/rke2/; echo "disable: rke2-ingress-nginx" >> /etc/rancher/rke2/config.yaml; curl -sfL https://get.rke2.io | RKE2_AGENT_TOKEN=stackroxftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
+  ssh $user@$server 'mkdir -p /etc/rancher/rke2/; echo "#disable: rke2-ingress-nginx" >> /etc/rancher/rke2/config.yaml; curl -sfL https://get.rke2.io | RKE2_AGENT_TOKEN=stackroxftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
 
   sleep 10
 
@@ -266,6 +266,9 @@ function traefik () {
   echo -n  "  - traefik "
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
+  if [ "$orchestrator" = rke ]; then 
+    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_rke.yml > /dev/null 2>&1
+  fi
   echo "$GREEN" "ok" "$NORMAL"
 }
 
@@ -338,8 +341,8 @@ function demo () {
 
   echo -n "  - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
-  echo -n "  - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
-  echo -n "  - struts ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/bad_struts.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  #echo -n "  - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+
   echo -n "  - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   
   echo -n "  - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1
