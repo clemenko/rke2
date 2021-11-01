@@ -16,10 +16,10 @@ key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
 image=ubuntu-20-10-x64
-#image=debian-10-x64
+#image=debian-11-x64
 #image=centos-8-x64
 
-orchestrator=rke # no rke k3s rancher
+orchestrator=k3s # no rke k3s rancher
 docker=no
 k3s_channel=stable # latest
 
@@ -98,7 +98,7 @@ if [[ "$image" = *"ubuntu"* ]]; then
   if [[ "$docker" = "yes" ]]; then
       pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker' > /dev/null 2>&1
   fi
-  pdsh -l $user -w $host_list 'systemctl stop ufw; systemctl disable ufw; apt update; export DEBIAN_FRONTEND=noninteractive; #apt upgrade -y; apt autoremove -y ' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'systemctl stop ufw; systemctl disable ufw; apt update; export DEBIAN_FRONTEND=noninteractive; #apt upgrade -y; apt autoremove -y; mkdir -p /opt/kube' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -174,9 +174,10 @@ if [ "$orchestrator" = k3s ]; then
 
   for workeri in $(awk '{print $1}' hosts.txt |sed 1d); do 
     k3sup join --ip $workeri --server-ip $server --user $user --k3s-extra-args '' --k3s-channel $k3s_channel > /dev/null 2>&1
-    rsync -avP ~/.kube/config $user@$workeri:/opt/kube_config > /dev/null 2>&1
   done 
-
+  
+  rsync -avP ~/.kube/config $user@$server:/opt/kube/config > /dev/null 2>&1
+  
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -319,10 +320,10 @@ function rox () {
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
 
 # ask central for a sensor bundle
-  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password > /dev/null 2>&1
+  roxctl sensor generate k8s -e $server:$rox_port --name ocp4 --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password > /dev/null 2>&1
 
 # install sensors
-  ./sensor-k3s/sensor.sh > /dev/null 2>&1
+  ./sensor-ocp4/sensor.sh > /dev/null 2>&1
 
 # deploy traefik CRD IngressRoute
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
@@ -385,6 +386,7 @@ function demo () {
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - code-server "
+  rsync -avP ~/.kube/config $user@$server:/opt/kube/config > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/code-server.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 } 
