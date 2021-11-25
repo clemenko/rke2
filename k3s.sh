@@ -15,13 +15,13 @@ size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
-image=ubuntu-20-10-x64
+image=ubuntu-21-10-x64
 #image=debian-11-x64
 #image=centos-8-x64
 
 orchestrator=k3s # no rke k3s rancher
 docker=no
-k3s_channel=stable # latest
+k3s_channel=latest # latest
 
 #stackrox automation.
 export REGISTRY_USERNAME=andy@stackrox.com
@@ -96,9 +96,9 @@ echo "$GREEN" "ok" "$NORMAL"
 if [[ "$image" = *"ubuntu"* ]]; then
   echo -n " adding os packages"
   if [[ "$docker" = "yes" ]]; then
-      pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker' > /dev/null 2>&1
+      pdsh -l $user -w $host_list 'export DEBIAN_FRONTEND=noninteractive; apt update; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker' > /dev/null 2>&1
   fi
-  pdsh -l $user -w $host_list 'systemctl stop ufw; systemctl disable ufw; apt update; export DEBIAN_FRONTEND=noninteractive; #apt upgrade -y; apt autoremove -y; mkdir -p /opt/kube' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; export DEBIAN_FRONTEND=noninteractive; apt update; #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -452,9 +452,11 @@ echo "$GREEN" "ok" "$NORMAL"
 
 ############################# simple ################################
 function simple () {
-  if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
+ # if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
   up
-  rox
+  traefik
+  longhorn
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_longhorn.yml > /dev/null 2>&1
 }
 
 ############################# status ################################
@@ -485,9 +487,10 @@ function usage () {
 
 case "$1" in
         up) up;;
+        simple) simple;;
         kill) kill;;
         status) status;;
-        rox) simple;;
+        rox) rox;;
         demo) demo;;
         full) simple && demo;;
         keycloak) keycloak;;
