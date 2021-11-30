@@ -19,7 +19,7 @@ image=ubuntu-21-10-x64
 #image=debian-11-x64
 #image=centos-8-x64
 
-orchestrator=k3s # no rke k3s rancher
+orchestrator=rke # no rke k3s rancher
 docker=no
 k3s_channel=latest # latest
 
@@ -184,7 +184,7 @@ fi
 #or deploy rke
 if [ "$orchestrator" = rke ]; then
   echo -n " deploying rke2 "
-  ssh $user@$server 'mkdir -p /etc/rancher/rke2/; echo "#disable: rke2-ingress-nginx" >> /etc/rancher/rke2/config.yaml; curl -sfL https://get.rke2.io | RKE2_AGENT_TOKEN=stackroxftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
+  ssh $user@$server 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; echo -e "#disable: rke2-ingress-nginx" > /etc/rancher/rke2/config.yaml; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | RKE2_AGENT_TOKEN=rancherftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
 
   sleep 10
 
@@ -261,7 +261,6 @@ function longhorn () {
   echo "$GREEN" "ok" "$NORMAL"
 }
 
-
 ################################ traefik ##############################
 function traefik () {
   echo -n  "  - traefik "
@@ -272,7 +271,6 @@ function traefik () {
   fi
   echo "$GREEN" "ok" "$NORMAL"
 }
-
 
 ################################ rox ##############################
 function rox () {
