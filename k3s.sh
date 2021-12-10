@@ -15,16 +15,17 @@ size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
-image=ubuntu-21-10-x64
+image=ubuntu-21-04-x64
 #image=debian-11-x64
 #image=centos-8-x64
 
-orchestrator=rke # no rke k3s rancher
+orchestrator=k3s # no rke k3s rancher
 docker=no
-k3s_channel=latest # latest
+k3s_channel=stable # latest
+rke2_channel=v1.21
 
 #stackrox automation.
-export REGISTRY_USERNAME=andy@stackrox.com
+export REGISTRY_USERNAME=AndyClemenko
 version=latest
 
 # Please set this before runing the script.
@@ -184,13 +185,13 @@ fi
 #or deploy rke
 if [ "$orchestrator" = rke ]; then
   echo -n " deploying rke2 "
-  ssh $user@$server 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; echo -e "#disable: rke2-ingress-nginx" > /etc/rancher/rke2/config.yaml; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | RKE2_AGENT_TOKEN=rancherftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
+  ssh $user@$server 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; echo -e "#disable: rke2-ingress-nginx" > /etc/rancher/rke2/config.yaml; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' RKE2_AGENT_TOKEN=rancherftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
 
   sleep 10
 
   token=$(ssh $user@$server 'cat /var/lib/rancher/rke2/server/node-token')
 
-  pdsh -l $user -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_TYPE=agent sh - && systemctl enable rke2-agent.service && mkdir -p /etc/rancher/rke2/ && echo "server: https://'$server':9345" > /etc/rancher/rke2/config.yaml && echo "token: '$token'" >> /etc/rancher/rke2/config.yaml && systemctl start rke2-agent.service' > /dev/null 2>&1
+  pdsh -l $user -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' INSTALL_RKE2_TYPE=agent sh - && systemctl enable rke2-agent.service && mkdir -p /etc/rancher/rke2/ && echo "server: https://'$server':9345" > /etc/rancher/rke2/config.yaml && echo "token: '$token'" >> /etc/rancher/rke2/config.yaml && systemctl start rke2-agent.service' > /dev/null 2>&1
 
   rsync -avP $user@$server:/etc/rancher/rke2/rke2.yaml ~/.kube/config > /dev/null 2>&1
   sed -i'' -e "s/127.0.0.1/$server/g" ~/.kube/config 
@@ -240,6 +241,7 @@ if [ "$orchestrator" = rancher ]; then
 fi
 
 echo -n " - cluster active"
+sleep 5
 until [ $(kubectl get node|grep NotReady|wc -l) = 0 ]; do echo -n "."; sleep 2; done
 echo "$GREEN" "ok" "$NORMAL"
 }
@@ -257,6 +259,8 @@ function longhorn () {
 
   kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
   if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
+
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_longhorn.yml > /dev/null 2>&1
 
   echo "$GREEN" "ok" "$NORMAL"
 }
@@ -300,7 +304,7 @@ function rox () {
 
   echo -n  "  - stackrox "  
 # generate stackrox yaml
-  roxctl central generate k8s pvc --storage-class longhorn --size 30 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+  roxctl central generate k8s pvc --main-image registry.redhat.io/rh-acs/main:3.67.1 --scanner-db-image registry.redhat.io/rh-acs/scanner-db:2.21.0 --scanner-image registry.redhat.io/rh-acs/scanner:2.21.0 --storage-class longhorn --size 30 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
 # setup and install central
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
@@ -318,10 +322,10 @@ function rox () {
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
 
 # ask central for a sensor bundle
-  roxctl sensor generate k8s -e $server:$rox_port --name ocp4 --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password > /dev/null 2>&1
+  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates --main-image-repository registry.redhat.io/rh-acs/main --collector-image-repository registry.redhat.io/rh-acs/collector -p $password > /dev/null 2>&1
 
 # install sensors
-  ./sensor-ocp4/sensor.sh > /dev/null 2>&1
+  ./sensor-k3s/sensor.sh > /dev/null 2>&1
 
 # deploy traefik CRD IngressRoute
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
@@ -336,6 +340,7 @@ function rox () {
 
 ############################# demo ################################
 function demo () {
+  server=$(sed -n 1p hosts.txt|awk '{print $1}')
   command -v linkerd >/dev/null 2>&1 || { echo "$RED" " ** Linkerd was not found. Please install ** " "$NORMAL" >&2; exit 1; }
 
   echo -n "  - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
@@ -345,7 +350,7 @@ function demo () {
   echo -n "  - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   
   echo -n "  - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1
-    curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_TOKEN
+   # curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_TOKEN
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - linkerd "; 
@@ -448,15 +453,6 @@ fi
 echo "$GREEN" "ok" "$NORMAL"
 }
 
-############################# simple ################################
-function simple () {
- # if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
-  up
-  traefik
-  longhorn
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_longhorn.yml > /dev/null 2>&1
-}
-
 ############################# status ################################
 function status () {
   echo " --- Cluster ---"
@@ -485,10 +481,12 @@ function usage () {
 
 case "$1" in
         up) up;;
-        simple) simple;;
+        simple) up && traefik && longhorn ;;
         kill) kill;;
         status) status;;
         rox) rox;;
+        traefik) traefik;;
+        longhorn) longhorn;;
         demo) demo;;
         full) simple && demo;;
         keycloak) keycloak;;
