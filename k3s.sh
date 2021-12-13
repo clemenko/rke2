@@ -52,6 +52,9 @@ command -v uuid >/dev/null 2>&1 || { echo "$RED" " ** Uuid was not found. Please
 command -v k3sup >/dev/null 2>&1 || { echo "$RED" " ** K3sup was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "$RED" " ** Kubectl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 
+server=$(sed -n 1p hosts.txt|awk '{print $1}')
+helm repo update > /dev/null 2>&1
+
 ################################# up ################################
 function up () {
 export PDSH_RCMD_TYPE=ssh
@@ -276,6 +279,29 @@ function traefik () {
   echo "$GREEN" "ok" "$NORMAL"
 }
 
+################################ neu ##############################
+function neu () {
+  echo -n  "  - neuvector "
+  kubectl create namespace neuvector > /dev/null 2>&1
+  kubectl create serviceaccount neuvector -n neuvector > /dev/null 2>&1
+  kubectl apply -f ~/Dropbox/work/neuvector/neu_traefik.yaml > /dev/null 2>&1
+  helm install neuvector --namespace neuvector neuvector/core  --set imagePullSecrets=regsecret -f ~/Dropbox/work/neuvector/neu_values.yml > /dev/null 2>&1
+
+  until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -n .; sleep 1; done
+
+  TOKEN=$(curl -sk -H "Content-Type: application/json" https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}' | jq  -r .token.token)
+
+  curl -sk -H "Content-Type: application/json" -H 'Token: '$TOKEN https://neuvector.$domain/eula -d '{"accepted":true}' > /dev/null 2>&1
+
+  curl -sk -H "Content-Type: application/json" -H 'Token: '$TOKEN -X PATCH https://neuvector.$domain/user -d '{"domain_permissions":{},"server":"","email":"","role":"admin","username":"admin","default_password":true,"password_days_until_expire":-1,"global_permissions":[{"id":"config","read":true,"write":true},{"id":"nv_resource","read":true,"write":true},{"id":"rt_scan","read":true,"write":true},{"id":"reg_scan","read":true,"write":true},{"id":"ci_scan","read":false,"write":true},{"id":"cloud","read":true,"write":true},{"id":"rt_policy","read":true,"write":true},{"id":"admctrl","read":true,"write":true},{"id":"compliance","read":true,"write":true},{"id":"audit_events","read":true,"write":false},{"id":"security_events","read":true,"write":false},{"id":"events","read":true,"write":false},{"id":"authentication","read":true,"write":true},{"id":"authorization","read":true,"write":true},{"id":"vulnerability","read":true,"write":true}],"locale":"en","fullname":"admin","token":"'$TOKEN'","timeout":300,"modify_password":false,"password":"admin","new_password":"'$password'"}' > /dev/null 2>&1
+
+  TOKEN=$(curl -sk -H "Content-Type: application/json" https://neuvector.$domain/auth -d '{"username": "admin", "password": "'$password'"}' | jq  -r .token.token)
+
+  curl -sk -X POST -H "Content-Type: application/json" -H 'Accept: application/json, text/plain, */*' -H 'Token: '$TOKEN https://neuvector.$domain/license/update -d '{"license_key":"'$(cat neuvector.lic)'"}' --compressed > /dev/null 2>&1
+
+  echo "$GREEN" "ok" "$NORMAL"
+}
+
 ################################ rox ##############################
 function rox () {
 # ensure no central-bundle is not present
@@ -340,7 +366,6 @@ function rox () {
 
 ############################# demo ################################
 function demo () {
-  server=$(sed -n 1p hosts.txt|awk '{print $1}')
   command -v linkerd >/dev/null 2>&1 || { echo "$RED" " ** Linkerd was not found. Please install ** " "$NORMAL" >&2; exit 1; }
 
   echo -n "  - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
@@ -434,6 +459,16 @@ function keycloak () {
   echo "$GREEN""ok" "$NORMAL"
 }
 
+
+############################# slides ################################
+function slides () {
+  echo -n "  - adding slides "
+  rsync -avP /Users/clemenko/Dropbox/work/talks/markdown/* $user@$server:/opt/slides > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/slides.yml > /dev/null 2>&1
+  echo "$GREEN""ok" "$NORMAL"
+}
+
+
 ############################## kill ################################
 #remove the vms
 function kill () {
@@ -451,14 +486,6 @@ else
 fi
 
 echo "$GREEN" "ok" "$NORMAL"
-}
-
-############################# status ################################
-function status () {
-  echo " --- Cluster ---"
-  #doctl compute droplet list --no-header|grep $prefix
-  kubectl get node -o wide
-  echo ""
 }
 
 ############################# usage ################################
@@ -483,12 +510,13 @@ case "$1" in
         up) up;;
         simple) up && traefik && longhorn ;;
         kill) kill;;
-        status) status;;
         rox) rox;;
+        neu) neu;;
         traefik) traefik;;
         longhorn) longhorn;;
         demo) demo;;
-        full) simple && demo;;
+        slides) slides;;
+        full) simple && demo && slides;;
         keycloak) keycloak;;
         *) usage;;
 esac
