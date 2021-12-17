@@ -15,12 +15,10 @@ size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
-image=ubuntu-21-04-x64
-#image=debian-11-x64
-#image=centos-8-x64
+#image=ubuntu-21-10-x64
+image=rockylinux-8-x64
 
-orchestrator=k3s # no rke k3s rancher
-docker=no
+orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
 rke2_channel=v1.21
 
@@ -52,14 +50,14 @@ command -v uuid >/dev/null 2>&1 || { echo "$RED" " ** Uuid was not found. Please
 command -v k3sup >/dev/null 2>&1 || { echo "$RED" " ** K3sup was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "$RED" " ** Kubectl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 
-server=$(sed -n 1p hosts.txt|awk '{print $1}')
-helm repo update > /dev/null 2>&1
+if [ -f hosts.txt ]; then server=$(sed -n 1p hosts.txt|awk '{print $1}'); fi
 
 ################################# up ################################
 function up () {
 export PDSH_RCMD_TYPE=ssh
 build_list=""
 uuid=""
+helm repo update > /dev/null 2>&1
 
 if [ -f hosts.txt ]; then
   echo "$RED" "Warning - cluster already detected..." "$NORMAL"
@@ -96,25 +94,16 @@ doctl compute domain records create $domain --record-type A --record-name $prefi
 doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix.$domain. > /dev/null 2>&1
 echo "$GREEN" "ok" "$NORMAL"
 
-#host modifications and Docker install
+#host modifications
 if [[ "$image" = *"ubuntu"* ]]; then
   echo -n " adding os packages"
-  if [[ "$docker" = "yes" ]]; then
-      pdsh -l $user -w $host_list 'export DEBIAN_FRONTEND=noninteractive; apt update; apt install -y apt-transport-https ca-certificates curl gnupg-agent; software-properties-common; curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -; add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"; apt update; apt install -y docker-ce docker-ce-cli containerd.io; systemctl start docker; systemctl enable docker' > /dev/null 2>&1
-  fi
   pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; export DEBIAN_FRONTEND=noninteractive; apt update; #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
-if [[ "$image" = *"debian"* ]]; then
+if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'apt update; export DEBIAN_FRONTEND=noninteractive; apt upgrade -y; apt install curl -y open-iscsi' > /dev/null 2>&1
-  echo "$GREEN" "ok" "$NORMAL"
-fi
-
-if [[ "$image" = *"centos"* ]]; then
-  echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'yum update -y && yum install -y iscsi-initiator-utils' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; #yum update -y && yum install -y iscsi-initiator-utils' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -188,7 +177,7 @@ fi
 #or deploy rke
 if [ "$orchestrator" = rke ]; then
   echo -n " deploying rke2 "
-  ssh $user@$server 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; echo -e "#disable: rke2-ingress-nginx" > /etc/rancher/rke2/config.yaml; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' RKE2_AGENT_TOKEN=rancherftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
+  ssh $user@$server 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; echo -e "disable: rke2-ingress-nginx" > /etc/rancher/rke2/config.yaml; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' RKE2_AGENT_TOKEN=rancherftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
 
   sleep 10
 
@@ -202,51 +191,41 @@ if [ "$orchestrator" = rke ]; then
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
-#deploy Rancher
-if [ "$orchestrator" = rancher ]; then
-  echo -n " starting rancher server "
-  ssh $user@$server "docker run -d -p 80:80 -p 443:443 --privileged --restart=unless-stopped rancher/rancher" > /dev/null 2>&1
-
-  until curl $server:443 > /dev/null 2>&1; do echo -n .; sleep 2; done
-  echo "$GREEN" "ok" "$NORMAL"
-
-  echo -n " setting up rancher server "
-  until [ "$token" != "" ] && [ "$token" != null ]; do 
-    token=$(curl -sk https://$server/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"admin"}'| jq -r .token) > /dev/null 2>&1
-  done
-
-  curl -sk https://$server/v3/users?action=changepassword -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"currentPassword":"admin","newPassword":"'$password'"}'  > /dev/null 2>&1 
-  
-  api_token=$(curl -sk https://$server/v3/token -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"token","description":"automation"}' | jq -r .token)
-  echo $api_token > api_token
-  
-  curl -sk https://$server/v3/settings/server-url -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"name":"server-url","value":"https://'$server'"}'  > /dev/null 2>&1
-  
-  curl -sk https://$server/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
-  echo "$GREEN" "ok" "$NORMAL"
-
-  echo -n " attaching agents "
-  agent_list=$(sed -n 2,"$num"p hosts.txt|awk '{printf $1","}')
-
-  # Create cluster
-  clusterid=$(curl -sk https://$server/v3/cluster -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -d '{"type":"cluster","nodes":[],"rancherKubernetesEngineConfig":{"ignoreDockerVersion":true},"name":"rancher"}' | jq -r .id )
-
-  # Generate token (clusterRegistrationToken) and extract nodeCommand
-  agent_command=$(curl -sk https://$server/v3/clusterregistrationtoken -H 'content-type: application/json' -H "Authorization: Bearer $api_token" --data-binary '{"type":"clusterRegistrationToken","clusterId":"'$clusterid'"}' | jq -r .nodeCommand)
-
-  ssh $user@$server "$agent_command --etcd --controlplane --worker" > /dev/null 2>&1
-  pdsh -l $user -w $agent_list "$agent_command --worker" > /dev/null 2>&1
-  echo "$GREEN" "ok" "$NORMAL"
-
-  echo -n " setting up kubectl "
-  curl -sk https://$server/v3/clusters/$clusterid?action=generateKubeconfig -X POST -H 'accept: application/json' -H "Authorization: Bearer $api_token" | jq -r .config > ~/.kube/config
-  echo "$GREEN" "ok" "$NORMAL"
-fi
-
 echo -n " - cluster active"
 sleep 5
 until [ $(kubectl get node|grep NotReady|wc -l) = 0 ]; do echo -n "."; sleep 2; done
 echo "$GREEN" "ok" "$NORMAL"
+}
+
+################################ rancher ##############################
+function rancher () {
+
+  echo -n " starting rancher server "
+  helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
+  helm repo add jetstack https://charts.jetstack.io
+  helm repo update
+
+  kubectl create namespace cattle-system
+  kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.crds.yaml
+  helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.6.1
+  helm install rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set replicas=3
+
+  #wait for rancher
+  
+  #get token
+  bootstrap=$(kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}{{"\n"}}')
+
+  curl -sk https://localhost:8443/v3-public/localProviders/local?action=login  -H 'accept: application/json' -H 'content-type: application/json;charset=UTF-8' -d '{"description":"UI session","responseType":"cookie","username":"admin","password":"'$bootstrap'"}' 
+
+  #set password
+
+
+  echo -n " setting up rancher server "
+  until [ "$token" != "" ] && [ "$token" != null ]; do 
+  token=$(curl -sk https://$server/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"admin"}'| jq -r .token) > /dev/null 2>&1
+  done
+
+  echo "$GREEN" "ok" "$NORMAL"
 }
 
 ################################ longhorn ##############################
@@ -282,6 +261,7 @@ function traefik () {
 ################################ neu ##############################
 function neu () {
   echo -n  "  - neuvector "
+  helm repo update > /dev/null 2>&1
   kubectl create namespace neuvector > /dev/null 2>&1
   kubectl create serviceaccount neuvector -n neuvector > /dev/null 2>&1
   kubectl apply -f ~/Dropbox/work/neuvector/neu_traefik.yaml > /dev/null 2>&1
@@ -370,7 +350,7 @@ function demo () {
 
   echo -n "  - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
-  #echo -n "  - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -n "  - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   
@@ -387,15 +367,6 @@ function demo () {
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/prometheus.yml > /dev/null 2>&1
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/kube-state-metrics-complete.yml > /dev/null 2>&1
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/prometheus_grafana_dashboards.yml > /dev/null 2>&1
-  echo "$GREEN""ok" "$NORMAL"
-
-  echo -n "  - patching stackrox for prometheus "
-  #kubectl -n stackrox patch svc/sensor -p '{"spec":{"ports":[{"name":"monitoring","port":9090,"protocol":"TCP","targetPort":9090}]}, "metadata":{"annotations":{"prometheus.io.scrape": "true", "prometheus.io/port": "9090"}}}' > /dev/null 2>&1
-
-  #kubectl -n stackrox patch svc/central -p '{"spec":{"ports":[{"name":"monitoring","port":9090,"protocol":"TCP","targetPort":9090}]}, "metadata":{"annotations":{"prometheus.io.scrape": "true", "prometheus.io/port": "9090"}}}' > /dev/null 2>&1
-
-  # Modify network policies to allow ingress
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_prometheus.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n "  - openfaas "
@@ -517,6 +488,5 @@ case "$1" in
         demo) demo;;
         slides) slides;;
         full) simple && demo && slides;;
-        keycloak) keycloak;;
         *) usage;;
 esac
