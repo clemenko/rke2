@@ -103,7 +103,7 @@ fi
 
 if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; #yum update -y && yum install -y iscsi-initiator-utils' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y iscsi-initiator-utils ; #yum update -y' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -175,6 +175,7 @@ if [ "$orchestrator" = k3s ]; then
 fi
 
 #or deploy rke
+# https://docs.rke2.io/install/methods/#enterprise-linux-8
 if [ "$orchestrator" = rke ]; then
   echo -n " deploying rke2 "
   ssh $user@$server 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; echo -e "disable: rke2-ingress-nginx" > /etc/rancher/rke2/config.yaml; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' RKE2_AGENT_TOKEN=rancherftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
@@ -191,7 +192,7 @@ if [ "$orchestrator" = rke ]; then
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
-echo -n " - cluster active"
+echo -n " - cluster active "
 sleep 5
 until [ $(kubectl get node|grep NotReady|wc -l) = 0 ]; do echo -n "."; sleep 2; done
 echo "$GREEN" "ok" "$NORMAL"
@@ -199,32 +200,38 @@ echo "$GREEN" "ok" "$NORMAL"
 
 ################################ rancher ##############################
 function rancher () {
-
-  echo -n " starting rancher server "
-  helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
-  helm repo add jetstack https://charts.jetstack.io
-  helm repo update
-
-  kubectl create namespace cattle-system
-  kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.crds.yaml
-  helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.6.1
-  helm install rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set replicas=3
-
-  #wait for rancher
+  token=''
   
+  echo " starting rancher server "
+  echo -n " - helming "
+  helm repo add rancher-latest https://releases.rancher.com/server-charts/latest > /dev/null 2>&1
+  helm repo add jetstack https://charts.jetstack.io > /dev/null 2>&1
+  helm repo update > /dev/null 2>&1
+
+  kubectl create namespace cattle-system  > /dev/null 2>&1
+  kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.crds.yaml  > /dev/null 2>&1
+  helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.6.1  > /dev/null 2>&1
+  helm install rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set replicas=3 --set bootstrapPassword=bootStrapAllTheThings > /dev/null 2>&1
+  echo "$GREEN" "ok" "$NORMAL"
+
+  #traefik
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher_traefik.yml  > /dev/null 2>&1
+
   #get token
-  bootstrap=$(kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}{{"\n"}}')
-
-  curl -sk https://localhost:8443/v3-public/localProviders/local?action=login  -H 'accept: application/json' -H 'content-type: application/json;charset=UTF-8' -d '{"description":"UI session","responseType":"cookie","username":"admin","password":"'$bootstrap'"}' 
-
-  #set password
-
-
-  echo -n " setting up rancher server "
+  echo -n " - bootstrapping "
   until [ "$token" != "" ] && [ "$token" != null ]; do 
-  token=$(curl -sk https://$server/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"admin"}'| jq -r .token) > /dev/null 2>&1
+    token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"bootStrapAllTheThings"}'| jq -r .token) > /dev/null 2>&1
+    sleep 2; echo -n .
   done
 
+  #set password
+  curl -sk https://rancher.$domain/v3/users?action=changepassword -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"currentPassword":"bootStrapAllTheThings","newPassword":"'$password'"}'  > /dev/null 2>&1 
+
+  api_token=$(curl -sk https://rancher.$domain/v3/token -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"token","description":"automation"}' | jq -r .token)
+
+  curl -sk https://rancher.$domain/v3/settings/server-url -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"name":"server-url","value":"https://'$server'"}'  > /dev/null 2>&1
+
+  curl -sk https://rancher.$domain/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 }
 
@@ -467,7 +474,7 @@ function usage () {
   echo " Usage: $0 {up|kill|rox|demo|full}"
   echo ""
   echo " ./k3s.sh up # build the vms "
-  echo " ./k3s.sh rox # just the rox"
+  echo " ./k3s.sh simple # simple deployment"
   echo " ./k3s.sh kill # kill the vms"
   echo " ./k3s.sh demo # deploy demo apps"
   echo " ./k3s.sh full # full send"
@@ -479,12 +486,13 @@ function usage () {
 
 case "$1" in
         up) up;;
-        simple) up && traefik && longhorn ;;
+        simple) up && traefik && longhorn && rancher;;
         kill) kill;;
         rox) rox;;
         neu) neu;;
         traefik) traefik;;
         longhorn) longhorn;;
+        rancher) rancher;;
         demo) demo;;
         slides) slides;;
         full) simple && demo && slides;;
