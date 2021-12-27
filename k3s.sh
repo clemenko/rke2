@@ -20,7 +20,7 @@ image=rockylinux-8-x64
 
 orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
-rke2_channel=v1.21
+rke2_channel=latest #v1.21
 
 #stackrox automation.
 export REGISTRY_USERNAME=AndyClemenko
@@ -77,7 +77,7 @@ doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'> hosts.
 echo "$GREEN" "ok" "$NORMAL"
 
 #check for SSH
-echo -n " checking for ssh"
+echo -n " checking for ssh "
 for ext in $(awk '{print $1}' hosts.txt); do
   until [ $(ssh -o ConnectTimeout=1 $user@$ext 'exit' 2>&1 | grep 'timed out\|refused' | wc -l) = 0 ]; do echo -n "." ; sleep 5; done
 done
@@ -200,29 +200,38 @@ echo "$GREEN" "ok" "$NORMAL"
 
 ################################ rancher ##############################
 function rancher () {
-  token=''
-  
   echo " starting rancher server "
   echo -n " - helming "
   helm repo add rancher-latest https://releases.rancher.com/server-charts/latest > /dev/null 2>&1
   helm repo add jetstack https://charts.jetstack.io > /dev/null 2>&1
   helm repo update > /dev/null 2>&1
 
-  kubectl create namespace cattle-system  > /dev/null 2>&1
   kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.crds.yaml  > /dev/null 2>&1
-  helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.6.1  > /dev/null 2>&1
-  helm install rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set replicas=3 --set bootstrapPassword=bootStrapAllTheThings > /dev/null 2>&1
+  helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.6.1  > /dev/null 2>&1
+  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set replicas=3 --set bootstrapPassword=bootStrapAllTheThings > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 
   #traefik
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher_traefik.yml  > /dev/null 2>&1
 
-  #get token
+  # wait for rancher
+  echo -n " - waiting for rancher "
+  until [ $(curl -sk https://rancher.dockr.life/v3-public/authtokens | grep uuid | wc -l) = 1 ]; do 
+    sleep 2
+    echo -n "." 
+    done
+  token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"bootStrapAllTheThings"}' | jq -r .token)
+  echo "$GREEN" "ok" "$NORMAL"
+
   echo -n " - bootstrapping "
-  until [ "$token" != "" ] && [ "$token" != null ]; do 
-    token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"bootStrapAllTheThings"}'| jq -r .token) > /dev/null 2>&1
-    sleep 2; echo -n .
-  done
+cat <<EOF | kubectl apply -f -  > /dev/null 2>&1
+apiVersion: management.cattle.io/v3
+kind: Setting
+metadata:
+  name: password-min-length
+  namespace: cattle-system
+value: "8"
+EOF
 
   #set password
   curl -sk https://rancher.$domain/v3/users?action=changepassword -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"currentPassword":"bootStrapAllTheThings","newPassword":"'$password'"}'  > /dev/null 2>&1 
@@ -237,7 +246,7 @@ function rancher () {
 
 ################################ longhorn ##############################
 function longhorn () {
-  echo -n  "  - longhorn "
+  echo -n  " - longhorn "
   kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
 
   sleep 5
@@ -256,7 +265,7 @@ function longhorn () {
 
 ################################ traefik ##############################
 function traefik () {
-  echo -n  "  - traefik "
+  echo -n  " - traefik "
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
   if [ "$orchestrator" = rke ]; then 
