@@ -20,7 +20,7 @@ image=rockylinux-8-x64
 
 orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
-rke2_channel=latest #v1.21
+rke2_channel=v1.21
 
 #stackrox automation.
 export REGISTRY_USERNAME=AndyClemenko
@@ -103,7 +103,7 @@ fi
 
 if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y iscsi-initiator-utils ; #yum update -y' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; yum update -y' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -326,7 +326,7 @@ function rox () {
 
   echo -n  "  - stackrox "  
 # generate stackrox yaml
-  roxctl central generate k8s pvc --main-image registry.redhat.io/rh-acs/main:3.67.1 --scanner-db-image registry.redhat.io/rh-acs/scanner-db:2.21.0 --scanner-image registry.redhat.io/rh-acs/scanner:2.21.0 --storage-class longhorn --size 30 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+  roxctl central generate k8s pvc --main-image registry.redhat.io/rh-acs/main:3.67.2 --scanner-db-image registry.redhat.io/rh-acs/scanner-db:2.21.0 --scanner-image registry.redhat.io/rh-acs/scanner:2.21.0 --storage-class longhorn --size 30 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
 
 # setup and install central
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
@@ -495,7 +495,7 @@ function usage () {
 
 case "$1" in
         up) up;;
-        simple) up && traefik && longhorn && rancher;;
+        simple) up && traefik && longhorn;;
         kill) kill;;
         rox) rox;;
         neu) neu;;
