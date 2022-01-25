@@ -24,7 +24,7 @@ Please pay attention to the variables at the stop of the scripts.
 Any questions please feel free to create an issue or email me at clemenko@gmail.com.
 
 
-## k3s
+## asciinema
 
 Specifically this script is designed to be as fast as possible. How about a recording?
 
