@@ -1,6 +1,6 @@
 # My Full Demo Stack
 
-Both these scripts are meant to simplify the building of a demo stack for StackRox. With both you will get :
+The script is meant to simplify the building of a demo stack for play and profit. With both you will get :
 
 - [DigitalOcean](http://digitalocean.com) - VMs
 - [Ubuntu](http://ubuntu.com) - [Rocky Linux](https://rockylinux.org/)
