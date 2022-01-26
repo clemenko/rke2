@@ -25,7 +25,7 @@ password=Pa22word
 rancherUrl=rancher.dockr.life
 projectName=newProject
 clusterName=local
-nameSpace=harbor
+nameSpace=flask
 unset projectId
 
 # get Token
@@ -38,9 +38,6 @@ projectId=$(curl -sk https://$rancherUrl/v3/projects -H 'content-type: applicati
 if [ -z $projectId ]; then 
   projectId=$(curl -sk https://$rancherUrl/v3/projects -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"project","name":"'$projectName'","annotations":{},"labels":{},"clusterId":"'$clusterName'"}' | jq -r .id | awk -F: '{print $2}')
 fi
-
-# get api token
-token=$(curl -sk -X POST https://$rancherUrl/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"'$password'"}' | jq -r .token)
 
 # get resource verison
 resourceVersion=$(curl -sk https://$rancherUrl/api/v1/namespaces/$nameSpace -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $token" |jq -r .metadata.resourceVersion)

@@ -519,6 +519,6 @@ case "$1" in
         rancher) rancher;;
         demo) demo;;
         slides) slides;;
-        full) simple && rancher && demo && slides;;
+        full) up && traefik && longhorn && rancher && demo && slides;;
         *) usage;;
 esac
