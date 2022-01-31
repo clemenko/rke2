@@ -46,3 +46,17 @@ resourceVersion=$(curl -sk https://$rancherUrl/api/v1/namespaces/$nameSpace -H '
 curl -sk https://$rancherUrl/v1/namespaces/$nameSpace -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $token" -X PUT  -d '{"id":"'$nameSpace'","metadata":{"annotations":{"field.cattle.io/projectId":"'$clusterName':'$projectId'"},"labels":{"field.cattle.io/projectId":"'$projectId'"},"name":"'$nameSpace'","resourceVersion": "'$resourceVersion'"}}'
 
 ```
+
+
+## deploy monitoring
+
+```bash
+password=Pa22word
+rancherUrl=rancher.dockr.life
+clusterName=local
+
+# get Token
+token=$(curl -sk -X POST https://$rancherUrl/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"'$password'"}' | jq -r .token)
+
+curl -sk https://$rancherUrl/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"rancher-monitoring-crd","version":"100.1.0+up19.0.3","releaseName":"rancher-monitoring-crd","projectId":null,"values":{"global":{"cattle":{"clusterId":"local","clusterName":"local","systemDefaultRegistry":"","url":"https://'$rancherUrl'","rkePathPrefix":"","rkeWindowsPathPrefix":""},"systemDefaultRegistry":""}},"annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"}},{"chartName":"rancher-monitoring","version":"100.1.0+up19.0.3","releaseName":"rancher-monitoring","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"ingressNginx":{"enabled":true,"namespace":"kube-system"},"prometheus":{"prometheusSpec":{"evaluationInterval":"1m","retentionSize":"50GiB","scrapeInterval":"1m"}},"rke2ControllerManager":{"enabled":true},"rke2Etcd":{"enabled":true},"rke2Proxy":{"enabled":true},"rke2Scheduler":{"enabled":true},"global":{"cattle":{"clusterId":"local","clusterName":"local","systemDefaultRegistry":"","url":"https://'$rancherUrl'","rkePathPrefix":"","rkeWindowsPathPrefix":""},"systemDefaultRegistry":""}}}],"noHooks":false,"timeout":"600s","wait":true,"namespace":"cattle-monitoring-system","projectId":null,"disableOpenAPIValidation":false,"skipCRDs":false}'
+```

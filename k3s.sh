@@ -20,7 +20,7 @@ image=rockylinux-8-x64
 
 orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
-rke2_channel=v1.21
+rke2_channel=v1.22
 profile=cis-1.6
 selinux=false # false
 
@@ -211,6 +211,7 @@ function rancher () {
   echo " starting rancher server "
   echo -n " - helming "
   helm repo add rancher-latest https://releases.rancher.com/server-charts/latest > /dev/null 2>&1
+  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts > /dev/null 2>&1
   helm repo add jetstack https://charts.jetstack.io > /dev/null 2>&1
   helm repo update > /dev/null 2>&1
 
@@ -333,12 +334,6 @@ function rox () {
   echo "$GREEN" "ok" "$NORMAL"
 
   echo " deploying :"
-# deploy traefik
-  traefik
-
-# deploy longhorn
-  longhorn
-
   echo -n  "  - stackrox "  
 # generate stackrox yaml
   roxctl central generate k8s pvc --main-image registry.redhat.io/rh-acs/main:3.67.2 --scanner-db-image registry.redhat.io/rh-acs/scanner-db:2.21.0 --scanner-image registry.redhat.io/rh-acs/scanner:2.21.0 --storage-class longhorn --size 30 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
@@ -379,43 +374,45 @@ function rox () {
 function demo () {
   command -v linkerd >/dev/null 2>&1 || { echo "$RED" " ** Linkerd was not found. Please install ** " "$NORMAL" >&2; exit 1; }
 
-  echo -n "  - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo " deploying:"
 
-  echo -n "  - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -n " - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
-  echo -n "  - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+
+  echo -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   
-  echo -n "  - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1
+  echo -n " - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1
    # curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_TOKEN
   echo "$GREEN""ok" "$NORMAL"
 
-  echo -n "  - linkerd "; 
+  echo -n " - linkerd "; 
   #linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
-  echo -n "  - prometheus/grafana "
+  echo -n " - prometheus/grafana "
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/prometheus.yml > /dev/null 2>&1
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/kube-state-metrics-complete.yml > /dev/null 2>&1
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/prometheus_grafana_dashboards.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
-  echo -n "  - openfaas "
+  echo -n " - openfaas "
   #kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml > /dev/null 2>&1
   #kubectl -n openfaas create secret generic basic-auth --from-literal=basic-auth-user=admin --from-literal=basic-auth-password="$password" > /dev/null 2>&1
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/openfass.yml > /dev/null 2>&1
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/openfaas_traefik.yml  > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
-  echo -n "  - harbor "
+  echo -n " - harbor "
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/harbor_traefik_ingress.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
   
-  echo -n "  - keycloak "
+  echo -n " - keycloak "
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
-  echo -n "  - code-server "
+  echo -n " - code-server "
   rsync -avP ~/.kube/config $user@$server:/opt/kube/config > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/code-server.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
@@ -464,7 +461,7 @@ function keycloak () {
 
 ############################# slides ################################
 function slides () {
-  echo -n "  - adding slides "
+  echo -n " slides "
   rsync -avP /Users/clemenko/Dropbox/work/talks/markdown/* $user@$server:/opt/slides > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/slides.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
@@ -519,6 +516,6 @@ case "$1" in
         rancher) rancher;;
         demo) demo;;
         slides) slides;;
-        full) up && traefik && longhorn && rancher && demo && slides;;
+        full) up && traefik && sleep 5 && longhorn && rancher && demo && slides;;
         *) usage;;
 esac
