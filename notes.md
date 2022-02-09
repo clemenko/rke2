@@ -62,6 +62,16 @@ curl -sk https://$rancherUrl/v1/catalog.cattle.io.clusterrepos/rancher-charts?ac
 
 ---
 
+## adding CIS to RKE2
+
+```bash
+ # run on the server
+ cp -f /usr/local/share/rke2/rke2-cis-sysctl.conf /etc/sysctl.d/60-rke2-cis.conf; 
+ systemctl restart systemd-sysctl; 
+ useradd -r -c "etcd user" -s /sbin/nologin -M etcd -U
+```
+---
+
 ## RKE Air Gapped
 
 ### get tars

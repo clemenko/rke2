@@ -18,7 +18,7 @@ domain=dockr.life
 #image=ubuntu-21-10-x64
 image=rockylinux-8-x64
 
-orchestrator=no # no rke k3s rancher
+orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
 rke2_channel=v1.22
 profile=cis-1.6
@@ -186,7 +186,10 @@ if [ "$orchestrator" = rke ]; then
   if [ "$ingress" = nginx ]; then ingress_file="#disable: rke2-ingress-nginx"; else ingress_file="disable: rke2-ingress-nginx"; fi
   if [ "$selinux" = true ]; then selinux_file="true"; else selinux_file="false"; fi
 
-  ssh $user@$server 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; echo -e "'$ingress_file'\n#profile: '$profile'\n#selinux: '$selinux_file'" > /etc/rancher/rke2/config.yaml; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' RKE2_AGENT_TOKEN=rancherftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
+  ssh $user@$server 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; echo -e "'$ingress_file'\n#profile: '$profile'\nselinux: '$selinux_file'" > /etc/rancher/rke2/config.yaml; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' RKE2_AGENT_TOKEN=rancherftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
+
+# for CIS
+#  cp -f /usr/local/share/rke2/rke2-cis-sysctl.conf /etc/sysctl.d/60-rke2-cis.conf; systemctl restart systemd-sysctl; useradd -r -c "etcd user" -s /sbin/nologin -M etcd -U
 
   sleep 10
 
