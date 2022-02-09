@@ -18,11 +18,11 @@ domain=dockr.life
 #image=ubuntu-21-10-x64
 image=rockylinux-8-x64
 
-orchestrator=rke # no rke k3s rancher
+orchestrator=no # no rke k3s rancher
 k3s_channel=stable # latest
 rke2_channel=v1.22
 profile=cis-1.6
-selinux=false # false
+selinux=true # false
 
 # ingress nginx or traefik
 ingress=traefik # traefik

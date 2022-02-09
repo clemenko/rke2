@@ -47,7 +47,6 @@ curl -sk https://$rancherUrl/v1/namespaces/$nameSpace -H 'content-type: applicat
 
 ```
 
-
 ## deploy monitoring
 
 ```bash
@@ -59,4 +58,44 @@ clusterName=local
 token=$(curl -sk -X POST https://$rancherUrl/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"'$password'"}' | jq -r .token)
 
 curl -sk https://$rancherUrl/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"rancher-monitoring-crd","version":"100.1.0+up19.0.3","releaseName":"rancher-monitoring-crd","projectId":null,"values":{"global":{"cattle":{"clusterId":"local","clusterName":"local","systemDefaultRegistry":"","url":"https://'$rancherUrl'","rkePathPrefix":"","rkeWindowsPathPrefix":""},"systemDefaultRegistry":""}},"annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"}},{"chartName":"rancher-monitoring","version":"100.1.0+up19.0.3","releaseName":"rancher-monitoring","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"ingressNginx":{"enabled":true,"namespace":"kube-system"},"prometheus":{"prometheusSpec":{"evaluationInterval":"1m","retentionSize":"50GiB","scrapeInterval":"1m"}},"rke2ControllerManager":{"enabled":true},"rke2Etcd":{"enabled":true},"rke2Proxy":{"enabled":true},"rke2Scheduler":{"enabled":true},"global":{"cattle":{"clusterId":"local","clusterName":"local","systemDefaultRegistry":"","url":"https://'$rancherUrl'","rkePathPrefix":"","rkeWindowsPathPrefix":""},"systemDefaultRegistry":""}}}],"noHooks":false,"timeout":"600s","wait":true,"namespace":"cattle-monitoring-system","projectId":null,"disableOpenAPIValidation":false,"skipCRDs":false}'
+```
+
+---
+
+## RKE Air Gapped
+
+### get tars
+
+```bash
+mkdir /root/rke2-artifacts && cd /root/rke2-artifacts/
+curl -OLs https://github.com/rancher/rke2/releases/download/v1.22.6%2Brke2r1/rke2-images.linux-amd64.tar.zst
+curl -OLs https://github.com/rancher/rke2/releases/download/v1.22.6%2Brke2r1/rke2.linux-amd64.tar.gz
+curl -OLs https://github.com/rancher/rke2/releases/download/v1.22.6%2Brke2r1/sha256sum-amd64.txt
+
+dnf install -y container-selinux iptables libnetfilter_conntrack libnfnetlink libnftnl policycoreutils-python-utils
+
+curl -sfL https://get.rke2.io --output install.sh
+```
+
+### on server
+
+```bash
+mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/;
+echo -e "#disable: rke2-ingress-nginx\nprofile: cis-1.6\nselinux: true" > /etc/rancher/rke2/config.yaml; 
+echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; 
+INSTALL_RKE2_ARTIFACT_PATH=/root/rke2-artifacts sh install.sh && systemctl enable rke2-server.service && systemctl start rke2-server.service
+
+# get token on server
+cat /var/lib/rancher/rke2/server/node-token
+# will need this for the agents to join
+
+```
+
+### on agents
+
+```bash
+mkdir -p /etc/rancher/rke2/ && echo "server: https://$SERVERIP:9345" > /etc/rancher/rke2/config.yaml && echo "token: "$token >> /etc/rancher/rke2/config.yaml
+
+INSTALL_RKE2_ARTIFACT_PATH=/root/rke2-artifacts INSTALL_RKE2_TYPE=agent sh install.sh && systemctl enable rke2-agent.service && systemctl start rke2-agent.service
+
 ```
