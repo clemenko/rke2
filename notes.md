@@ -17,7 +17,7 @@ clusterId=$( curl -sk https://$rancherUrl/apis/provisioning.cattle.io/v1/namespa
 curl -sk https://$rancherUrl/v3/clusterregistrationtokens -H 'content-type: application/json' -H "Authorization: Bearer $token"  | jq -r ' .data[] | select(.clusterId=="'$clusterId'") | .insecureCommand' 
 ```
 
-## api for moving namepsaces to projects
+## api for moving namespaces to projects
 
 ```bash
 ## move NS to project

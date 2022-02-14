@@ -22,7 +22,7 @@ orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
 rke2_channel=v1.22
 profile=cis-1.6
-selinux=true # false
+selinux=false # false
 
 # ingress nginx or traefik
 ingress=traefik # traefik
@@ -108,7 +108,7 @@ fi
 
 if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; #yum update -y' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; #yum update -y; setenforce 0' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -220,7 +220,7 @@ function rancher () {
 
   kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.crds.yaml  > /dev/null 2>&1
   helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace   > /dev/null 2>&1 #--version v1.6.1
-  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set 'extraEnv[0].name=CATTLE_TLS_MIN_VERSION' --set 'extraEnv[0].value=1.2'  > /dev/null 2>&1
+  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --version 2.5.9 --set 'extraEnv[0].name=CATTLE_TLS_MIN_VERSION' --set 'extraEnv[0].value=1.2'  > /dev/null 2>&1
   #--version=2.6.0
 
   echo "$GREEN" "ok" "$NORMAL"
@@ -230,7 +230,7 @@ function rancher () {
 
   # wait for rancher
   echo -n " - waiting for rancher "
-  until [ $(curl -sk https://rancher.dockr.life/v3-public/authtokens | grep uuid | wc -l) = 1 ]; do 
+  until [ $(curl -sk https://rancher.$domain/v3-public/authtokens | grep uuid | wc -l) = 1 ]; do 
     sleep 2
     echo -n "." 
     done
