@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 # https://github.com/clemenko/k3s/blob/master/k3s.sh
 # this script assumes digitalocean is setup with DNS.
 # you need doctl, kubectl, uuid, jq, k3sup, pdsh and curl installed.
@@ -15,12 +16,12 @@ size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
-#image=ubuntu-21-10-x64
-image=rockylinux-8-x64
+image=ubuntu-21-10-x64
+#image=rockylinux-8-x64
 
-orchestrator=rke # no rke k3s rancher
+orchestrator=k3s # no rke k3s rancher
 k3s_channel=stable # latest
-rke2_channel=v1.22
+rke2_channel=v1.21
 profile=cis-1.6
 selinux=false # false
 
@@ -102,13 +103,13 @@ echo "$GREEN" "ok" "$NORMAL"
 #host modifications
 if [[ "$image" = *"ubuntu"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; export DEBIAN_FRONTEND=noninteractive; apt update; #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; export DEBIAN_FRONTEND=noninteractive; apt update; apt install nfs-common -y;  #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
 if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; #yum update -y; setenforce 0' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y nfs-utils iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; #yum update -y; setenforce 0' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -220,7 +221,7 @@ function rancher () {
 
   kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.crds.yaml  > /dev/null 2>&1
   helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace   > /dev/null 2>&1 #--version v1.6.1
-  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --version 2.5.9 --set 'extraEnv[0].name=CATTLE_TLS_MIN_VERSION' --set 'extraEnv[0].value=1.2'  > /dev/null 2>&1
+  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --version 2.6.4-rc3 --devel --set 'extraEnv[0].name=CATTLE_TLS_MIN_VERSION' --set 'extraEnv[0].value=1.2'  > /dev/null 2>&1
   #--version=2.6.0
 
   echo "$GREEN" "ok" "$NORMAL"
@@ -274,6 +275,9 @@ function longhorn () {
   if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
 
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_longhorn.yml > /dev/null 2>&1
+
+  # add encryption per volume storage class 
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/longhorn_encryption.yml > /dev/null 2>&1
 
   echo "$GREEN" "ok" "$NORMAL"
 }

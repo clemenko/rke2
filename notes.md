@@ -72,7 +72,7 @@ curl -sk https://$rancherUrl/v1/catalog.cattle.io.clusterrepos/rancher-charts?ac
 ```
 ---
 
-## RKE Air Gapped
+## RKE2 Air Gapped
 
 ### get tars
 
@@ -107,5 +107,32 @@ cat /var/lib/rancher/rke2/server/node-token
 mkdir -p /etc/rancher/rke2/ && echo "server: https://$SERVERIP:9345" > /etc/rancher/rke2/config.yaml && echo "token: "$token >> /etc/rancher/rke2/config.yaml
 
 INSTALL_RKE2_ARTIFACT_PATH=/root/rke2-artifacts INSTALL_RKE2_TYPE=agent sh install.sh && systemctl enable rke2-agent.service && systemctl start rke2-agent.service
+
+```
+
+
+## Rancher Air Gapped
+
+### get tars
+
+```bash
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+helm fetch jetstack/cert-manager --version v1.5.1
+helm template ./cert-manager-<version>.tgz | awk '$1 ~ /image:/ {print $2}' | sed s/\"//g >> ./rancher-images.txt
+sort -u rancher-images.txt -o rancher-images.txt
+
+# download images
+./rancher-save-images.sh --image-list ./rancher-images.txt
+
+```
+
+Move the tar and shell script. 
+
+### loading the bits
+
+```bash
+# load into the registry
+./rancher-load-images.sh --image-list ./rancher-images.txt --registry <REGISTRY.YOURDOMAIN.COM:PORT>
 
 ```
