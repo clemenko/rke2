@@ -7,6 +7,7 @@ The script is meant to simplify the building of a demo stack for play and profit
 - [RKE2](https://docs.rke2.io/) - RKE2 Kube / [K3s](http://k3s.io) - K3s Kube
 - [Rancher](https://rancher.com/products/rancher) - Rancher Cluster Manager
 - [Longhorn](http://longhorn.io) - Stateful storage
+- [Minio](http://Minio.io) - S3 object store
 - [Traefik](http://traefik.io) - Ingress
 - [Jenkins](http://jenkins.io) - CI/CD
 - [Prometheus](http://prometheus.io) - Metrics
