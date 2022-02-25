@@ -19,7 +19,7 @@ domain=dockr.life
 image=ubuntu-21-10-x64
 #image=rockylinux-8-x64
 
-orchestrator=k3s # no rke k3s rancher
+orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
 rke2_channel=v1.21
 profile=cis-1.6
@@ -109,7 +109,7 @@ fi
 
 if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y nfs-utils iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; #yum update -y; setenforce 0' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; #yum update -y; setenforce 0' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -343,12 +343,16 @@ function rox () {
   echo " deploying :"
   echo -n  "  - stackrox "  
 # generate stackrox yaml
-  roxctl central generate k8s pvc --main-image registry.redhat.io/rh-acs/main:3.67.2 --scanner-db-image registry.redhat.io/rh-acs/scanner-db:2.21.0 --scanner-image registry.redhat.io/rh-acs/scanner:2.21.0 --storage-class longhorn --size 30 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+  roxctl central generate k8s pvc  --storage-class longhorn --size 10 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+# --main-image registry.redhat.io/rh-acs/main:3.67.2 --scanner-db-image registry.redhat.io/rh-acs/scanner-db:2.21.0 --scanner-image registry.redhat.io/rh-acs/scanner:2.21.0
 
 # setup and install central
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
   kubectl apply -R -f central-bundle/central > /dev/null 2>&1
 
+# deploy traefik CRD IngressRoute
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
+  
  # get the server and port from kubectl - assuming nodeport
   server=$(kubectl get nodes -o json | jq -r '.items[0].status.addresses[] | select( .type=="InternalIP" ) | .address ')
   rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
@@ -361,13 +365,11 @@ function rox () {
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
 
 # ask central for a sensor bundle
-  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates --main-image-repository registry.redhat.io/rh-acs/main --collector-image-repository registry.redhat.io/rh-acs/collector -p $password > /dev/null 2>&1
+  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password > /dev/null 2>&1
+# --main-image-repository registry.redhat.io/rh-acs/main --collector-image-repository registry.redhat.io/rh-acs/collector
 
 # install sensors
   ./sensor-k3s/sensor.sh > /dev/null 2>&1
-
-# deploy traefik CRD IngressRoute
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
 
   echo "$GREEN" "ok" "$NORMAL"
 
@@ -383,12 +385,18 @@ function demo () {
 
   echo " deploying:"
 
-  echo -n " - graylog ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -n " - graylog "; #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
   echo -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
   echo -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   
+  echo -n " - minio "
+   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi > /dev/null 2>&1
+  # https://github.com/minio/minio/blob/master/helm/minio/values.yaml
+   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio_traefik.yml > /dev/null 2>&1
+   echo "$GREEN""ok" "$NORMAL"
+
   echo -n " - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1
    # curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_TOKEN
   echo "$GREEN""ok" "$NORMAL"
@@ -412,7 +420,7 @@ function demo () {
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n " - harbor "
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/harbor_traefik_ingress.yml > /dev/null 2>&1
+  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/harbor_traefik_ingress.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
   
   echo -n " - keycloak "
