@@ -221,7 +221,7 @@ function rancher () {
 
   kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.crds.yaml  > /dev/null 2>&1
   helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace   > /dev/null 2>&1 #--version v1.6.1
-  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --version 2.6.4-rc3 --devel --set 'extraEnv[0].name=CATTLE_TLS_MIN_VERSION' --set 'extraEnv[0].value=1.2'  > /dev/null 2>&1
+  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --version 2.6.4-rc4 --devel --set 'extraEnv[0].name=CATTLE_TLS_MIN_VERSION' --set 'extraEnv[0].value=1.2'  > /dev/null 2>&1
   #--version=2.6.0
 
   echo "$GREEN" "ok" "$NORMAL"
