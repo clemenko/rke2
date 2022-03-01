@@ -124,10 +124,20 @@ sort -u rancher-images.txt -o rancher-images.txt
 
 # download images
 ./rancher-save-images.sh --image-list ./rancher-images.txt
-
 ```
 
-Move the tar and shell script. 
+example of a multi-homed install
+
+```
+disable: rke2-ingress-nginx
+#profile: cis-1.6
+selinux: false
+advertise-address: 192.168.13.1
+node-ip: 192.168.13.1
+node-external-ip: 192.168.13.1
+```
+
+Move the tar and shell script.
 
 ### loading the bits
 
