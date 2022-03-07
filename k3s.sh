@@ -16,8 +16,8 @@ size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
 
-image=ubuntu-21-10-x64
-#image=rockylinux-8-x64
+#image=ubuntu-21-10-x64
+image=rockylinux-8-x64
 
 orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
@@ -119,6 +119,7 @@ pdsh -l $user -w $host_list 'cat << EOF >> /etc/sysctl.conf
 # SWAP settings
 vm.swappiness=0
 vm.overcommit_memory=1
+vm.max_map_count = 262144
 
 # Have a larger connection range available
 net.ipv4.ip_local_port_range=1024 65000
