@@ -74,13 +74,13 @@ curl -sk https://$rancherUrl/v1/catalog.cattle.io.clusterrepos/rancher-charts?ac
 
 ## RKE2 Air Gapped
 
-### get tars
+### get tars - rke2
 
 ```bash
 mkdir /root/rke2-artifacts && cd /root/rke2-artifacts/
-curl -OLs https://github.com/rancher/rke2/releases/download/v1.22.6%2Brke2r1/rke2-images.linux-amd64.tar.zst
-curl -OLs https://github.com/rancher/rke2/releases/download/v1.22.6%2Brke2r1/rke2.linux-amd64.tar.gz
-curl -OLs https://github.com/rancher/rke2/releases/download/v1.22.6%2Brke2r1/sha256sum-amd64.txt
+curl -OLs https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/rke2-images.linux-amd64.tar.zst
+curl -OLs https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/rke2.linux-amd64.tar.gz
+curl -OLs https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/sha256sum-amd64.txt
 
 dnf install -y container-selinux iptables libnetfilter_conntrack libnfnetlink libnftnl policycoreutils-python-utils
 
@@ -90,10 +90,17 @@ curl -sfL https://get.rke2.io --output install.sh
 ### on server
 
 ```bash
+cd /root/rke2-artifacts/
+useradd -r -c "etcd user" -s /sbin/nologin -M etcd -U
 mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/;
-echo -e "#disable: rke2-ingress-nginx\nprofile: cis-1.6\nselinux: true" > /etc/rancher/rke2/config.yaml; 
+echo -e "#disable: rke2-ingress-nginx\n#profile: cis-1.6\nselinux: false" > /etc/rancher/rke2/config.yaml; 
 echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; 
-INSTALL_RKE2_ARTIFACT_PATH=/root/rke2-artifacts sh install.sh && systemctl enable rke2-server.service && systemctl start rke2-server.service
+INSTALL_RKE2_ARTIFACT_PATH=/root/rke2-artifacts sh install.sh 
+systemctl enable rke2-server.service && systemctl start rke2-server.service
+
+# wait and add link
+export KUBECONFIG=/etc/rancher/rke2/rke2.yaml 
+ln -s /var/lib/rancher/rke2/data/v1.21.7-rke2r1-eb1a94997eba/bin/kubectl /usr/local/bin/kubectl
 
 # get token on server
 cat /var/lib/rancher/rke2/server/node-token
@@ -104,16 +111,17 @@ cat /var/lib/rancher/rke2/server/node-token
 ### on agents
 
 ```bash
+SERVERIP=142.93.179.101
+token=K107d13b6508d78b91c81bf19c6179b3bd3c0d8c267b7c895d3fafd6d7eca76d9d3::server:078debaf13f07dfe1611526d9ceec385
 mkdir -p /etc/rancher/rke2/ && echo "server: https://$SERVERIP:9345" > /etc/rancher/rke2/config.yaml && echo "token: "$token >> /etc/rancher/rke2/config.yaml
 
+cd /root/rke2-artifacts/
 INSTALL_RKE2_ARTIFACT_PATH=/root/rke2-artifacts INSTALL_RKE2_TYPE=agent sh install.sh && systemctl enable rke2-agent.service && systemctl start rke2-agent.service
-
 ```
-
 
 ## Rancher Air Gapped
 
-### get tars
+### get tars - rancher
 
 ```bash
 helm repo add jetstack https://charts.jetstack.io

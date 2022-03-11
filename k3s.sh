@@ -15,6 +15,8 @@ zone=nyc3
 size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
+prefix=k3s
+block_volume=5
 
 #image=ubuntu-21-10-x64
 image=rockylinux-8-x64
@@ -23,7 +25,7 @@ orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
 rke2_channel=v1.21
 profile=cis-1.6
-selinux=false # false
+selinux=true # false
 
 # ingress nginx or traefik
 ingress=traefik # traefik
@@ -43,9 +45,6 @@ RED=$(tput setaf 1)
 GREEN=$(tput setaf 2)
 NORMAL=$(tput sgr0)
 BLUE=$(tput setaf 4)
-
-if [ "$image" = k3sos ]; then user=k3s; else user=root; fi
-if [ "$orchestrator" = k3s ]; then prefix=k3s; else prefix=k3s; fi
 
 #better error checking
 command -v doctl >/dev/null 2>&1 || { echo "$RED" " ** Doctl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
@@ -82,6 +81,15 @@ doctl compute droplet create $build_list --region $zone --image $image --size $s
 doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'> hosts.txt
 echo "$GREEN" "ok" "$NORMAL"
 
+# add block storage
+if [ "$block_volume" -gt "0" ]; then 
+  echo -n " adding block storage "
+    for i in $(awk '{print $2}' hosts.txt); do 
+      doctl compute volume-action attach $(doctl compute volume create $i --region $zone --size $block_volume"GiB" |grep $i| awk '{print $1}') $(doctl compute droplet list | grep $i |awk '{print $1}') > /dev/null 2>&1
+    done
+fi
+echo "$GREEN" "ok" "$NORMAL"
+
 #check for SSH
 echo -n " checking for ssh "
 for ext in $(awk '{print $1}' hosts.txt); do
@@ -99,6 +107,8 @@ echo -n " updating dns"
 doctl compute domain records create $domain --record-type A --record-name $prefix --record-ttl 300 --record-data $server > /dev/null 2>&1
 doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix.$domain. > /dev/null 2>&1
 echo "$GREEN" "ok" "$NORMAL"
+
+sleep 5
 
 #host modifications
 if [[ "$image" = *"ubuntu"* ]]; then
@@ -119,6 +129,8 @@ pdsh -l $user -w $host_list 'cat << EOF >> /etc/sysctl.conf
 # SWAP settings
 vm.swappiness=0
 vm.overcommit_memory=1
+kernel.panic=10
+kernel.panic_on_oops=1
 vm.max_map_count = 262144
 
 # Have a larger connection range available
@@ -264,7 +276,8 @@ EOF
 ################################ longhorn ##############################
 function longhorn () {
   echo -n  " - longhorn "
-  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
+ # kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.3/deploy/longhorn.yaml > /dev/null 2>&1
 
   sleep 5
 
@@ -493,6 +506,8 @@ if [ -f hosts.txt ]; then
   for i in $(awk '{print $2}' hosts.txt); do doctl compute droplet delete --force $i; done
   for i in $(awk '{print $1}' hosts.txt); do ssh-keygen -q -R $i > /dev/null 2>&1; done
   for i in $(doctl compute domain records list dockr.life|grep 'k3s\|k3s'|awk '{print $1}'); do doctl compute domain records delete -f dockr.life $i; done
+  until [ $(doctl compute droplet list --no-header|grep $prefix|wc -l| sed 's/ //g') == 0 ]; do echo -n "."; sleep 2; done
+  for i in $(doctl compute volume list --no-header |awk '{print $1}'); do doctl compute volume delete -f $i; done
 
   rm -rf *.txt *.log *.zip *.pem *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN 
 
