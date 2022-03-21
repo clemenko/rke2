@@ -78,9 +78,9 @@ curl -sk https://$rancherUrl/v1/catalog.cattle.io.clusterrepos/rancher-charts?ac
 
 ```bash
 mkdir /root/rke2-artifacts && cd /root/rke2-artifacts/
-curl -OLs https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/rke2-images.linux-amd64.tar.zst
-curl -OLs https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/rke2.linux-amd64.tar.gz
-curl -OLs https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/sha256sum-amd64.txt
+curl -#OL https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/rke2-images.linux-amd64.tar.zst
+curl -#OL https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/rke2.linux-amd64.tar.gz
+curl -#OL https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/sha256sum-amd64.txt
 
 dnf install -y container-selinux iptables libnetfilter_conntrack libnfnetlink libnftnl policycoreutils-python-utils
 
@@ -117,6 +117,31 @@ mkdir -p /etc/rancher/rke2/ && echo "server: https://$SERVERIP:9345" > /etc/ranc
 
 cd /root/rke2-artifacts/
 INSTALL_RKE2_ARTIFACT_PATH=/root/rke2-artifacts INSTALL_RKE2_TYPE=agent sh install.sh && systemctl enable rke2-agent.service && systemctl start rke2-agent.service
+```
+
+## k3s air gapped
+
+### get tars - k3s
+
+```bash
+# Get bits
+curl -#OL https://github.com/k3s-io/k3s/releases/download/v1.21.10%2Bk3s1/k3s-airgap-images-amd64.tar
+curl -#L https://get.k3s.io -o install.sh
+curl -#OL https://github.com/k3s-io/k3s/releases/download/v1.21.10%2Bk3s1/k3s
+chmod 755 ./k3s
+chmod 755 ./install.sh
+
+# move bits 
+mkdir -p /var/lib/rancher/k3s/agent/images/ /var/lib/rancher/k3s/agent/images/
+mv k3s /usr/local/bin/
+mv k3s*.tar /var/lib/rancher/k3s/agent/images/
+
+# install stuff?
+dnf install -y container-selinux iptables libnetfilter_conntrack libnfnetlink libnftnl policycoreutils-python-utils
+
+# install
+INSTALL_K3S_SKIP_DOWNLOAD=true ./install.sh
+
 ```
 
 ## Rancher Air Gapped

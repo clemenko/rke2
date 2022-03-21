@@ -15,22 +15,24 @@ zone=nyc3
 size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
-prefix=k3s
-block_volume=5
+prefix=rancher
+block_volume=0
+user=root
 
-#image=ubuntu-21-10-x64
-image=rockylinux-8-x64
+image=ubuntu-21-10-x64
+#image=rockylinux-8-x64
 
-orchestrator=rke # no rke k3s rancher
+# rancher / k8s
+orchestrator=no # no rke k3s rancher
 k3s_channel=stable # latest
-rke2_channel=v1.21
+rke2_channel=v1.21 #v1.21
 profile=cis-1.6
 selinux=true # false
 
 # ingress nginx or traefik
 ingress=traefik # traefik
 
-#stackrox automation.
+# stackrox automation.
 export REGISTRY_USERNAME=AndyClemenko
 version=latest
 
@@ -51,7 +53,6 @@ command -v doctl >/dev/null 2>&1 || { echo "$RED" " ** Doctl was not found. Plea
 command -v curl >/dev/null 2>&1 || { echo "$RED" " ** Curl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "$RED" " ** Jq was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v pdsh >/dev/null 2>&1 || { echo "$RED" " ** Pdsh was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
-command -v uuid >/dev/null 2>&1 || { echo "$RED" " ** Uuid was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v k3sup >/dev/null 2>&1 || { echo "$RED" " ** K3sup was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "$RED" " ** Kubectl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
 
@@ -61,7 +62,6 @@ if [ -f hosts.txt ]; then server=$(sed -n 1p hosts.txt|awk '{print $1}'); fi
 function up () {
 export PDSH_RCMD_TYPE=ssh
 build_list=""
-uuid=""
 helm repo update > /dev/null 2>&1
 
 if [ -f hosts.txt ]; then
@@ -70,10 +70,7 @@ if [ -f hosts.txt ]; then
 fi
 
 #rando list generation
-for i in $(seq 1 $num); do
- uuid=$(uuid -v4| awk -F"-" '{print $4}')
- build_list="$prefix-$uuid $build_list"
-done
+for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 
 #build VMS
 echo -n " building vms - $build_list"
@@ -87,8 +84,9 @@ if [ "$block_volume" -gt "0" ]; then
     for i in $(awk '{print $2}' hosts.txt); do 
       doctl compute volume-action attach $(doctl compute volume create $i --region $zone --size $block_volume"GiB" |grep $i| awk '{print $1}') $(doctl compute droplet list | grep $i |awk '{print $1}') > /dev/null 2>&1
     done
+  echo "$GREEN" "ok" "$NORMAL"
 fi
-echo "$GREEN" "ok" "$NORMAL"
+
 
 #check for SSH
 echo -n " checking for ssh "
@@ -113,13 +111,13 @@ sleep 5
 #host modifications
 if [[ "$image" = *"ubuntu"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; export DEBIAN_FRONTEND=noninteractive; apt update; apt install nfs-common -y;  #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; export DEBIAN_FRONTEND=noninteractive; apt update; apt install nfs-common -y;  apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
 if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; #yum update -y; setenforce 0' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; #yum update -y' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -137,7 +135,7 @@ vm.max_map_count = 262144
 net.ipv4.ip_local_port_range=1024 65000
 
 # Increase max connection
-net.core.somaxconn = 10000
+net.core.somaxconn=10000
 
 # Reuse closed sockets faster
 net.ipv4.tcp_tw_reuse=1
@@ -178,14 +176,16 @@ sysctl -p' > /dev/null 2>&1
 echo "$GREEN" "ok" "$NORMAL"
 
 #or deploy k3s
-if [ "$orchestrator" = no ]; then exit; fi
+if [ "$orchestrator" != k3s ] && [ "$orchestrator" != rke ]; then exit; fi
 
 if [ "$orchestrator" = k3s ]; then
   echo -n " deploying k3s"
-  k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik' --cluster --k3s-channel $k3s_channel --local-path ~/.kube/config > /dev/null 2>&1
+  if [ "$selinux" = true ]; then selinux_file="--selinux"; else selinux_file=""; fi
+
+  k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik '$selinux_file'' --cluster --k3s-channel $k3s_channel --local-path ~/.kube/config > /dev/null 2>&1
 
   for workeri in $(awk '{print $1}' hosts.txt |sed 1d); do 
-    k3sup join --ip $workeri --server-ip $server --user $user --k3s-extra-args '' --k3s-channel $k3s_channel > /dev/null 2>&1
+    k3sup join --ip $workeri --server-ip $server --user $user --k3s-extra-args ''$selinux_file'' --k3s-channel $k3s_channel > /dev/null 2>&1
   done 
   
   rsync -avP ~/.kube/config $user@$server:/opt/kube/config > /dev/null 2>&1
@@ -200,7 +200,7 @@ if [ "$orchestrator" = rke ]; then
   if [ "$ingress" = nginx ]; then ingress_file="#disable: rke2-ingress-nginx"; else ingress_file="disable: rke2-ingress-nginx"; fi
   if [ "$selinux" = true ]; then selinux_file="true"; else selinux_file="false"; fi
 
-  ssh $user@$server 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; echo -e "'$ingress_file'\n#profile: '$profile'\nselinux: '$selinux_file'" > /etc/rancher/rke2/config.yaml; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' RKE2_AGENT_TOKEN=rancherftw sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
+  ssh $user@$server 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; echo -e "'$ingress_file'\n#profile: '$profile'\nselinux: '$selinux_file'" > /etc/rancher/rke2/config.yaml; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' sh - && systemctl enable rke2-server.service && systemctl start rke2-server.service' > /dev/null 2>&1
 
 # for CIS
 #  cp -f /usr/local/share/rke2/rke2-cis-sysctl.conf /etc/sysctl.d/60-rke2-cis.conf; systemctl restart systemd-sysctl; useradd -r -c "etcd user" -s /sbin/nologin -M etcd -U
@@ -230,12 +230,11 @@ function rancher () {
   helm repo add rancher-latest https://releases.rancher.com/server-charts/latest > /dev/null 2>&1
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts > /dev/null 2>&1
   helm repo add jetstack https://charts.jetstack.io > /dev/null 2>&1
-  helm repo update > /dev/null 2>&1
 
   kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.crds.yaml  > /dev/null 2>&1
   helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace   > /dev/null 2>&1 #--version v1.6.1
-  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --version 2.6.4-rc4 --devel --set 'extraEnv[0].name=CATTLE_TLS_MIN_VERSION' --set 'extraEnv[0].value=1.2'  > /dev/null 2>&1
-  #--version=2.6.0
+  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --version 2.6.4-rc10 --devel --set 'extraEnv[0].name=CATTLE_TLS_MIN_VERSION' --set 'extraEnv[0].value=1.2'  > /dev/null 2>&1
+  # --version 2.6.4-rc4 --devel
 
   echo "$GREEN" "ok" "$NORMAL"
 
@@ -299,6 +298,7 @@ function longhorn () {
 ################################ traefik ##############################
 function traefik () {
   echo -n  " - traefik "
+  # helm repo add traefik https://helm.traefik.io/traefik
   if [ "$ingress" = traefik ]; then 
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
@@ -396,17 +396,18 @@ function rox () {
 ############################# demo ################################
 function demo () {
   command -v linkerd >/dev/null 2>&1 || { echo "$RED" " ** Linkerd was not found. Please install ** " "$NORMAL" >&2; exit 1; }
+  server=$(sed -n 1p hosts.txt|awk '{print $1}')
 
   echo " deploying:"
 
-  echo -n " - graylog "; #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  #echo -n " - graylog "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
   echo -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
   echo -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   
   echo -n " - minio "
-   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi > /dev/null 2>&1
+   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
   # https://github.com/minio/minio/blob/master/helm/minio/values.yaml
    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio_traefik.yml > /dev/null 2>&1
    echo "$GREEN""ok" "$NORMAL"
@@ -438,7 +439,7 @@ function demo () {
   echo "$GREEN""ok" "$NORMAL"
   
   echo -n " - keycloak "
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1
+  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n " - code-server "
@@ -448,6 +449,7 @@ function demo () {
 } 
 
 ################################ keycloak ##############################
+# needs to be updated for Rancher!
 function keycloak () {
   echo -n "  - keycloak ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   echo -n "    - configuring all the things"
