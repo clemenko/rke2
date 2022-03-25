@@ -11,7 +11,7 @@
 set -e
 num=3
 password=Pa22word
-zone=nyc3
+zone=nyc1
 size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=dockr.life
@@ -23,9 +23,9 @@ image=ubuntu-21-10-x64
 #image=rockylinux-8-x64
 
 # rancher / k8s
-orchestrator=no # no rke k3s rancher
+orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
-rke2_channel=v1.21 #v1.21
+rke2_channel=v1.22 #v1.21
 profile=cis-1.6
 selinux=true # false
 
@@ -111,7 +111,7 @@ sleep 5
 #host modifications
 if [[ "$image" = *"ubuntu"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; export DEBIAN_FRONTEND=noninteractive; apt update; apt install nfs-common -y;  apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; export DEBIAN_FRONTEND=noninteractive; apt update; apt install nfs-common -y;  #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
@@ -233,7 +233,7 @@ function rancher () {
 
   kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.crds.yaml  > /dev/null 2>&1
   helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace   > /dev/null 2>&1 #--version v1.6.1
-  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --version 2.6.4-rc10 --devel --set 'extraEnv[0].name=CATTLE_TLS_MIN_VERSION' --set 'extraEnv[0].value=1.2'  > /dev/null 2>&1
+  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --version 2.6.4-rc10 --devel --set auditLog.level=1 --set auditLog.destination=hostPath > /dev/null 2>&1
   # --version 2.6.4-rc4 --devel
 
   echo "$GREEN" "ok" "$NORMAL"
@@ -458,8 +458,8 @@ function keycloak () {
 
   sleep 30
   
-  export KEY_URL=keycloak.dockr.life
-  export ROX_URL=stackrox.dockr.life
+  export KEY_URL=keycloak.$domain
+  export ROX_URL=stackrox.$domain
 
   # get auth token - notice keycloak's password 
   export key_token=$(curl -sk -X POST https://$KEY_URL/auth/realms/master/protocol/openid-connect/token -d 'client_id=admin-cli&username=admin&password='$password'&credentialId=&grant_type=password' | jq -r .access_token)
@@ -478,7 +478,7 @@ function keycloak () {
   export client_secret=$(curl -sk  https://$KEY_URL/auth/admin/realms/stackrox/clients/$client_id/client-secret -H "authorization: Bearer $key_token" | jq -r .value)
 
   # add keycloak user clemenko / Pa22word
-  curl -k 'https://keycloak.dockr.life/auth/admin/realms/stackrox/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":[],"credentials":[{"type":"password","value":"Pa22word","temporary":false}],"username":"clemenko","emailVerified":"","firstName":"Andy","lastName":"Clemenko"}' 
+  curl -k 'https://keycloak.'$domain'/auth/admin/realms/stackrox/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":[],"credentials":[{"type":"password","value":"Pa22word","temporary":false}],"username":"clemenko","emailVerified":"","firstName":"Andy","lastName":"Clemenko"}' 
 
   # config stackrox
   export auth_id=$(curl -sk -X POST -u admin:$password https://$ROX_URL/v1/authProviders -d '{"type":"oidc","uiEndpoint":"'$ROX_URL'","enabled":true,"config":{"mode":"query","do_not_use_client_secret":"false","client_secret":"'$client_secret'","issuer":"https+insecure://'$KEY_URL'/auth/realms/stackrox","client_id":"stackrox"},"name":"stackrox"}' | jq -r .id)
@@ -489,7 +489,6 @@ function keycloak () {
   echo "$GREEN""ok" "$NORMAL"
 }
 
-
 ############################# slides ################################
 function slides () {
   echo -n " slides "
@@ -497,7 +496,6 @@ function slides () {
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/slides.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 }
-
 
 ############################## kill ################################
 #remove the vms
@@ -507,7 +505,7 @@ if [ -f hosts.txt ]; then
   echo -n " killing it all "
   for i in $(awk '{print $2}' hosts.txt); do doctl compute droplet delete --force $i; done
   for i in $(awk '{print $1}' hosts.txt); do ssh-keygen -q -R $i > /dev/null 2>&1; done
-  for i in $(doctl compute domain records list dockr.life|grep 'k3s\|k3s'|awk '{print $1}'); do doctl compute domain records delete -f dockr.life $i; done
+  for i in $(doctl compute domain records list $domain|grep ''$prefix'\|'$prefix''|awk '{print $1}'); do doctl compute domain records delete -f $domain $i; done
   until [ $(doctl compute droplet list --no-header|grep $prefix|wc -l| sed 's/ //g') == 0 ]; do echo -n "."; sleep 2; done
   for i in $(doctl compute volume list --no-header |awk '{print $1}'); do doctl compute volume delete -f $i; done
 
