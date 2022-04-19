@@ -34,13 +34,8 @@ ingress=traefik # traefik
 
 # stackrox automation.
 export REGISTRY_USERNAME=AndyClemenko
-version=latest
-
 # Please set this before runing the script.
 #export REGISTRY_PASSWORD=
-
-# Linux or Darwin
-roxOS=Darwin
 
 ######  NO MOAR EDITS #######
 RED=$(tput setaf 1)
@@ -75,7 +70,7 @@ for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 #build VMS
 echo -n " building vms - $build_list"
 doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --wait > /dev/null 2>&1
-doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'> hosts.txt
+doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'|sort -k 2> hosts.txt
 echo "$GREEN" "ok" "$NORMAL"
 
 # add block storage
@@ -231,9 +226,9 @@ function rancher () {
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts > /dev/null 2>&1
   helm repo add jetstack https://charts.jetstack.io > /dev/null 2>&1
 
-  kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.1/cert-manager.crds.yaml  > /dev/null 2>&1
+  kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.2/cert-manager.crds.yaml  > /dev/null 2>&1
   helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace   > /dev/null 2>&1 #--version v1.6.1
-  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --version 2.6.4-rc10 --devel --set auditLog.level=1 --set auditLog.destination=hostPath > /dev/null 2>&1
+  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=1 --set auditLog.destination=hostPath > /dev/null 2>&1
   # --version 2.6.4-rc4 --devel
 
   echo "$GREEN" "ok" "$NORMAL"
@@ -276,7 +271,7 @@ EOF
 function longhorn () {
   echo -n  " - longhorn "
  # kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
-  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.3/deploy/longhorn.yaml > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.4/deploy/longhorn.yaml > /dev/null 2>&1
 
   sleep 5
 
@@ -350,7 +345,7 @@ function rox () {
 # for MacOS you may need to remove the quarentine for it
 # xattr -d com.apple.quarantine /usr/local/bin/roxctl
   echo -n " getting latest roxctl "
-    curl -#L https://mirror.openshift.com/pub/rhacs/assets/$version/bin/$roxOS/roxctl -o /usr/local/bin/roxctl > /dev/null 2>&1
+    curl -#L https://mirror.openshift.com/pub/rhacs/assets/latest/bin/Darwin/roxctl -o /usr/local/bin/roxctl > /dev/null 2>&1
     chmod 755 /usr/local/bin/roxctl
   echo "$GREEN" "ok" "$NORMAL"
 
