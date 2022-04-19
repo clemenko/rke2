@@ -70,7 +70,7 @@ for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 #build VMS
 echo -n " building vms - $build_list"
 doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --wait > /dev/null 2>&1
-doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'|sort -k 2> hosts.txt
+doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'|sort -k 2 > hosts.txt
 echo "$GREEN" "ok" "$NORMAL"
 
 # add block storage
