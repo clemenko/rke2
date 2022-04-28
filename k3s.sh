@@ -294,12 +294,13 @@ function longhorn () {
 function traefik () {
   echo -n  " - traefik "
   # helm repo add traefik https://helm.traefik.io/traefik
-  if [ "$ingress" = traefik ]; then 
-    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
-    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
+  if [ "$ingress" = traefik ]; then
     if [ "$orchestrator" = rke ]; then 
-      kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_rke.yml > /dev/null 2>&1
+        kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_rke.yml > /dev/null 2>&1
+    elif [ "$orchestrator" = k3s ]; then
+        kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
     fi
+    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
     echo "$GREEN" "ok" "$NORMAL"
   else 
    echo "$RED" "nginx installed" "$NORMAL"
