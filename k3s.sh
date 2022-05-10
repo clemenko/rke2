@@ -19,13 +19,13 @@ prefix=rancher
 block_volume=0
 user=root
 
-image=ubuntu-21-10-x64
+image=ubuntu-22-04-x64
 #image=rockylinux-8-x64
 
 # rancher / k8s
-orchestrator=rke # no rke k3s rancher
+orchestrator=k3s # no rke k3s rancher
 k3s_channel=stable # latest
-rke2_channel=v1.22 #v1.21
+rke2_channel=v1.21 #v1.21
 profile=cis-1.6
 selinux=true # false
 
@@ -106,7 +106,7 @@ sleep 5
 #host modifications
 if [[ "$image" = *"ubuntu"* ]]; then
   echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; export DEBIAN_FRONTEND=noninteractive; apt update; apt install nfs-common -y;  #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; echo "PubkeyAcceptedKeyTypes=+ssh-rsa" >> /etc/ssh/sshd_config; systemctl restart sshd; export DEBIAN_FRONTEND=noninteractive; apt update; apt install nfs-common -y;  #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 fi
 
