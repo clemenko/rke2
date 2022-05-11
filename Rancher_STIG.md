@@ -1,6 +1,8 @@
 # Rancher STIG Mitigation
 
-Just a simple guide for navigating the Rancher 2.6 STIG from DISA. You can download the STIG itself from [https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_RGS_MCM_V1R1_STIG.zip](https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_RGS_MCM_V1R1_STIG.zip). The SITG viewer can be found on DISA's site at [https://public.cyber.mil/stigs/srg-stig-tools/](https://public.cyber.mil/stigs/srg-stig-tools/). For this guide I have simplified the controls and provided simple steps to ensure compliance. Hope this helps a little.
+Just a simple guide for navigating the Rancher 2.6 STIG from DISA. There is a nice article about it from [Businesswire](https://www.businesswire.com/news/home/20220425005143/en/DISA-Validates-Rancher-Government-Solutions%E2%80%99-Security-Technical-Implementation-Guide-for-the-Rancher-Multi-cluster-Manager-2.6-for-Kubernetes).
+
+You can download the STIG itself from [https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_RGS_MCM_V1R1_STIG.zip](https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_RGS_MCM_V1R1_STIG.zip). The SITG viewer can be found on DISA's site at [https://public.cyber.mil/stigs/srg-stig-tools/](https://public.cyber.mil/stigs/srg-stig-tools/). For this guide I have simplified the controls and provided simple steps to ensure compliance. Hope this helps a little.
 
 ## V-252843 - Use an AUTH provider - Keycloak
 
@@ -20,6 +22,7 @@ Fix Text: Ensure audit logging is enabled:
 - Change the AUDIT_LEVEL value to "2" or "3" and then click "Save".
 
 If the variable does not exist:
+
 - Click "Add Variable".
 - Keep Default key/Value Pair as "Type"
 - Add "AUDIT_LEVEL" as Variable Name.
@@ -100,7 +103,7 @@ ce: secret
 
 Re-run helm upgrade with the new values for the certs to take effect.
 
-## V-252849	- Prohibit or restrict the use of protocols
+## V-252849 - Prohibit or restrict the use of protocols
 
 This control is for limiting the ports that are allowed for ingress to the Rancher UI/API.
 
