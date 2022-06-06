@@ -100,7 +100,7 @@ systemctl enable rke2-server.service && systemctl start rke2-server.service
 
 # wait and add link
 export KUBECONFIG=/etc/rancher/rke2/rke2.yaml 
-ln -s /var/lib/rancher/rke2/data/v1.21.7-rke2r1-eb1a94997eba/bin/kubectl /usr/local/bin/kubectl
+ln -s /var/lib/rancher/rke2/data/v1*/bin/kubectl  /usr/local/bin/kubectl
 
 # get token on server
 cat /var/lib/rancher/rke2/server/node-token
@@ -149,10 +149,13 @@ INSTALL_K3S_SKIP_DOWNLOAD=true ./install.sh
 ### get tars - rancher
 
 ```bash
+helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
 helm repo add jetstack https://charts.jetstack.io
 helm repo update
-helm fetch jetstack/cert-manager --version v1.5.1
-helm template ./cert-manager-<version>.tgz | awk '$1 ~ /image:/ {print $2}' | sed s/\"//g >> ./rancher-images.txt
+helm pull jetstack/cert-manager --version v1.8.0
+helm pull rancher-latest/rancher
+helm template ./cert-manager-<version>.tgz | awk '$1 ~ /image:/ {print $2}' | sed s/\"//g > ./rancher-images.txt
+helm template rancher-2.6.5.tgz | awk '$1 ~ /image:/ {print $2}' | sed s/\"//g >> ./rancher-images.txt
 sort -u rancher-images.txt -o rancher-images.txt
 
 # download images

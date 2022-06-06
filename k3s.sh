@@ -14,28 +14,27 @@ password=Pa22word
 zone=nyc1
 size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
-domain=dockr.life
+domain=rfed.io
 prefix=rancher
 block_volume=0
 user=root
 
-image=ubuntu-22-04-x64
-#image=rockylinux-8-x64
+#image=ubuntu-22-04-x64
+image=rockylinux-8-x64
 
 # rancher / k8s
-orchestrator=k3s # no rke k3s rancher
+orchestrator=rke # no rke k3s rancher
 k3s_channel=stable # latest
-rke2_channel=v1.21 #v1.21
+rke2_channel=v1.22 #v1.21
 profile=cis-1.6
-selinux=true # false
+selinux=false # false
 
 # ingress nginx or traefik
 ingress=traefik # traefik
 
 # stackrox automation.
 export REGISTRY_USERNAME=AndyClemenko
-# Please set this before runing the script.
-#export REGISTRY_PASSWORD=
+export rox_version=3.70.x-46-g252ef30ffd
 
 ######  NO MOAR EDITS #######
 RED=$(tput setaf 1)
@@ -81,7 +80,6 @@ if [ "$block_volume" -gt "0" ]; then
     done
   echo "$GREEN" "ok" "$NORMAL"
 fi
-
 
 #check for SSH
 echo -n " checking for ssh "
@@ -352,8 +350,8 @@ function rox () {
   echo " deploying :"
   echo -n  "  - stackrox "  
 # generate stackrox yaml
-  roxctl central generate k8s pvc  --storage-class longhorn --size 10 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
-# --main-image registry.redhat.io/rh-acs/main:3.67.2 --scanner-db-image registry.redhat.io/rh-acs/scanner-db:2.21.0 --scanner-image registry.redhat.io/rh-acs/scanner:2.21.0
+#  roxctl central generate k8s pvc  --storage-class longhorn --size 5 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
+  roxctl central generate k8s pvc --storage-class longhorn --size 10 --enable-telemetry=false --lb-type np --password $password  --main-image quay.io/stackrox-io/main:$rox_version --scanner-db-image quay.io/stackrox-io/scanner-db:$rox_version --scanner-image quay.io/stackrox-io/scanner:$rox_version > /dev/null 2>&1
 
 # setup and install central
   ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
@@ -374,8 +372,8 @@ function rox () {
   kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
 
 # ask central for a sensor bundle
-  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password > /dev/null 2>&1
-# --main-image-repository registry.redhat.io/rh-acs/main --collector-image-repository registry.redhat.io/rh-acs/collector
+#  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password > /dev/null 2>&1
+  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password --main-image-repository quay.io/stackrox-io/main:$rox_version --collector-image-repository quay.io/stackrox-io/collector  > /dev/null 2>&1
 
 # install sensors
   ./sensor-k3s/sensor.sh > /dev/null 2>&1
