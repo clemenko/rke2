@@ -13,7 +13,7 @@ num=3
 password=Pa22word
 zone=nyc1
 #size=s-4vcpu-8gb
-size=s-8vcpu-16gb-amd 
+size=s-8vcpu-16gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=rfed.io
 prefix=rancher
@@ -220,13 +220,20 @@ echo "$GREEN" "ok" "$NORMAL"
 ################################ rancher ##############################
 function rancher () {
   echo " starting rancher server "
+
+  echo -n " - creating namespace and adding CAs"
+  kubectl create ns cattle-system
+  # add additional CAs
+  # from mkcert
+  kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=rootCA.pem
+
   echo -n " - helming "
   helm repo add rancher-latest https://releases.rancher.com/server-charts/latest > /dev/null 2>&1
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts > /dev/null 2>&1
   helm repo add jetstack https://charts.jetstack.io > /dev/null 2>&1
 
   helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true > /dev/null 2>&1 #--version v1.6.1
-  helm upgrade -i rancher rancher-latest/rancher --create-namespace --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set additionalTrustedCAs=true > /dev/null 2>&1
+  helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set additionalTrustedCAs=true > /dev/null 2>&1
   # --version 2.6.4-rc4 --devel
 
   echo "$GREEN" "ok" "$NORMAL"
@@ -263,9 +270,6 @@ EOF
   curl -sk https://rancher.$domain/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 
-  # add additional CAs
-  # from mkcert
-  kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=rootCA.pem
 }
 
 ################################ longhorn ##############################
@@ -482,6 +486,13 @@ function keycloak () {
   # add keycloak user clemenko / Pa22word
   curl -k 'https://keycloak.'$domain'/auth/admin/realms/rancher/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":[],"credentials":[{"type":"password","value":"Pa22word","temporary":false}],"username":"clemenko","emailVerified":"","firstName":"Andy","lastName":"Clemenko"}' 
 
+  # configure rancher
+  #token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"bootStrapAllTheThings"}' | jq -r .token)
+
+  #api_token=$(curl -sk https://rancher.$domain/v3/token -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"token","description":"automation"}' | jq -r .token)
+
+  #curl -sk -X POST https://rancher.$domain/v3/keyCloakOIDCConfigs/keycloakoidc?action=configureTest -H 'accept: application/json' -H 'accept-language: en-US,en;q=0.9' -H 'content-type: application/json;charset=UTF-8' -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"enabled":false,"id":"keycloakoidc","name":"keycloakoidc","type":"keyCloakOIDCConfig","uuid":"a9f725d2-e7e2-4f49-b00c-d48c24d29674","__clone":true,"accessMode":"unrestricted","rancherUrl":"https://rancher.'$domain'/verify-auth","scope":"openid profile email","clientId":"rancher","clientSecret":"'$client_secret'","issuer":"https://keycloak.'$domain'/auth/realms/rancher","authEndpoint":"https://keycloak.'$domain'/auth/realms/rancher/protocol/openid-connect/auth"}'
+
 
 #  export ROX_URL=stackrox.$domain
   # config stackrox
@@ -513,7 +524,7 @@ if [ -f hosts.txt ]; then
   until [ $(doctl compute droplet list --no-header|grep $prefix|wc -l| sed 's/ //g') == 0 ]; do echo -n "."; sleep 2; done
   for i in $(doctl compute volume list --no-header |awk '{print $1}'); do doctl compute volume delete -f $i; done
 
-  rm -rf *.txt *.log *.zip *.pem *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN 
+  rm -rf *.txt *.log *.zip *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN 
 
 else
   echo -n " no hosts file found "
@@ -547,6 +558,7 @@ case "$1" in
         rox) rox;;
         neu) neu;;
         traefik) traefik;;
+        keycloak) keycloak;;
         longhorn) longhorn;;
         rancher) rancher;;
         demo) demo;;
