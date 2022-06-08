@@ -440,7 +440,7 @@ function demo () {
   echo "$GREEN""ok" "$NORMAL"
   
   echo -n " - keycloak "
-f > /dev/null 2>&1
+  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n " - code-server "
