@@ -12,8 +12,7 @@ set -e
 num=3
 password=Pa22word
 zone=nyc1
-#size=s-4vcpu-8gb
-size=s-8vcpu-16gb
+size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=rfed.io
 prefix=rancher
@@ -225,7 +224,7 @@ function rancher () {
   kubectl create ns cattle-system > /dev/null 2>&1
   # add additional CAs
   # from mkcert
-  kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=rootCA.pem
+  kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=rootCA.pem > /dev/null 2>&1
 
   echo -n " - helming "
   helm repo add rancher-latest https://releases.rancher.com/server-charts/latest > /dev/null 2>&1
