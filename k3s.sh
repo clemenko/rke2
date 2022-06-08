@@ -222,7 +222,7 @@ function rancher () {
   echo " starting rancher server "
 
   echo -n " - creating namespace and adding CAs"
-  kubectl create ns cattle-system
+  kubectl create ns cattle-system > /dev/null 2>&1
   # add additional CAs
   # from mkcert
   kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=rootCA.pem
@@ -438,10 +438,6 @@ function demo () {
   echo -n " - harbor "
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/harbor_traefik_ingress.yml > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
-  
-  echo -n " - keycloak "
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1
-  echo "$GREEN""ok" "$NORMAL"
 
   echo -n " - code-server "
   rsync -avP ~/.kube/config $user@$server:/opt/kube/config > /dev/null 2>&1
@@ -452,15 +448,21 @@ function demo () {
 ################################ keycloak ##############################
 # needs to be updated for Rancher!
 function keycloak () {
-  echo -n "  - keycloak ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
-  echo -n "    - configuring all the things"
-
-  until [ $(kubectl get pod -n keycloak | grep -v 'Running\|NAME\|svclb' | wc -l) = 0 ] ; do echo -n "." ; sleep 2; done
-
-  sleep 30
   
-  export KEY_URL=keycloak.$domain
-  export RANCHER_URL=rancher.$domain
+  KEY_URL=keycloak.$domain
+  RANCHER_URL=rancher.$domain
+
+  echo " keycloaking"
+  echo -n " - deploying "
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1
+  echo "$GREEN""ok" "$NORMAL"
+  
+  echo -n " - waiting for url"
+
+  until [ $(curl -sk https://keycloak.$domain/auth/ | grep "Administration Console" | wc -l) = 1 ]; do echo -n "." ; sleep 2; done
+  echo "$GREEN"" ok" "$NORMAL"
+
+  echo -n " - adding realm and client "
 
   # get auth token - notice keycloak's password 
   export key_token=$(curl -sk -X POST https://$KEY_URL/auth/realms/master/protocol/openid-connect/token -d 'client_id=admin-cli&username=admin&password='$password'&credentialId=&grant_type=password' | jq -r .access_token)
@@ -486,13 +488,17 @@ function keycloak () {
   # add keycloak user clemenko / Pa22word
   curl -k 'https://keycloak.'$domain'/auth/admin/realms/rancher/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":[],"credentials":[{"type":"password","value":"Pa22word","temporary":false}],"username":"clemenko","emailVerified":"","firstName":"Andy","lastName":"Clemenko"}' 
 
+  echo "$GREEN""ok" "$NORMAL"
+
+  echo -n " - configuring rancher "
   # configure rancher
-  #token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"bootStrapAllTheThings"}' | jq -r .token)
+  token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"'$password'"}' | jq -r .token)
 
-  #api_token=$(curl -sk https://rancher.$domain/v3/token -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"token","description":"automation"}' | jq -r .token)
+  api_token=$(curl -sk https://rancher.$domain/v3/token -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"token","description":"automation"}' | jq -r .token)
 
-  #curl -sk -X POST https://rancher.$domain/v3/keyCloakOIDCConfigs/keycloakoidc?action=configureTest -H 'accept: application/json' -H 'accept-language: en-US,en;q=0.9' -H 'content-type: application/json;charset=UTF-8' -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"enabled":false,"id":"keycloakoidc","name":"keycloakoidc","type":"keyCloakOIDCConfig","uuid":"a9f725d2-e7e2-4f49-b00c-d48c24d29674","__clone":true,"accessMode":"unrestricted","rancherUrl":"https://rancher.'$domain'/verify-auth","scope":"openid profile email","clientId":"rancher","clientSecret":"'$client_secret'","issuer":"https://keycloak.'$domain'/auth/realms/rancher","authEndpoint":"https://keycloak.'$domain'/auth/realms/rancher/protocol/openid-connect/auth"}'
+  curl -sk -X PUT https://rancher.$domain/v3/keyCloakOIDCConfigs/keycloakoidc?action=testAndEnable -H 'accept: application/json' -H 'accept-language: en-US,en;q=0.9' -H 'content-type: application/json;charset=UTF-8' -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"enabled":true,"id":"keycloakoidc","name":"keycloakoidc","type":"keyCloakOIDCConfig","accessMode":"unrestricted","rancherUrl":"https://rancher.'$domain'/verify-auth","scope":"openid profile email","clientId":"rancher","clientSecret":"'$client_secret'","issuer":"https://keycloak.'$domain'/auth/realms/rancher","authEndpoint":"https://keycloak.'$domain'/auth/realms/rancher/protocol/openid-connect/auth"}'
 
+  echo "$GREEN""ok" "$NORMAL"
 
 #  export ROX_URL=stackrox.$domain
   # config stackrox
@@ -501,7 +507,6 @@ function keycloak () {
   # change default to Analyst
 #  curl -sk -X POST -u admin:$password https://$ROX_URL/v1/groups -d '{"props":{"authProviderId":"'$auth_id'"},"roleName":"Analyst"}'
 
-  echo "$GREEN""ok" "$NORMAL"
 }
 
 ############################# slides ################################
