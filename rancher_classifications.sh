@@ -10,7 +10,7 @@ password=Pa22word
 if [ -z $rancherUrl ]; then 
  echo "$RED [warn]$NORMAL Please add the server name and classification to the command."
  echo "  $BLUE Use:$NORMAL $0 <SERVER> <CLASSIFICATION> "
- echo "  $BLUE Use:$NORMAL $0 stackrox.dockr.life TS "
+ echo "  $BLUE Use:$NORMAL $0 rancher.rfed.io TS "
  exit
 fi
 
