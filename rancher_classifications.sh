@@ -22,7 +22,7 @@ echo -n " - Rancher Admin Password for $rancherUrl: "; read -s password; echo
 }
 
 # get current version
-resourceVersion=$(curl -sk https://rancher.dockr.life/v1/management.cattle.io.settings/ui-banners | jq -r .metadata.resourceVersion)
+resourceVersion=$(curl -sk https://$rancherUrl/v1/management.cattle.io.settings/ui-banners | jq -r .metadata.resourceVersion)
 
 # get Token
 get_password
