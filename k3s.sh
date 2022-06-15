@@ -274,8 +274,8 @@ EOF
 ################################ longhorn ##############################
 function longhorn () {
   echo -n  " - longhorn "
- # kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
-  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.4/deploy/longhorn.yaml > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
+#  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.4/deploy/longhorn.yaml > /dev/null 2>&1
 
   sleep 5
 
