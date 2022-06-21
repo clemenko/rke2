@@ -232,6 +232,12 @@ function rancher () {
   helm repo add jetstack https://charts.jetstack.io > /dev/null 2>&1
 
   helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true > /dev/null 2>&1 #--version v1.6.1
+
+  #custom TLS certs
+  #kubectl -n cattle-system create secret tls tls-rancher-ingress --cert=tls.crt --key=tls.key
+  #kubectl -n cattle-system create secret generic tls-ca --from-file=cacerts.pem
+  #kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=cacerts.pem
+
   helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set additionalTrustedCAs=true > /dev/null 2>&1
   # --version 2.6.4-rc4 --devel
 
