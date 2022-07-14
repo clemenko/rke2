@@ -15,7 +15,6 @@ zone=nyc1
 size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=rfed.io
-prefix=rancher
 block_volume=0
 user=root
 
@@ -23,9 +22,9 @@ user=root
 image=rockylinux-8-x64
 
 # rancher / k8s
-orchestrator=rke # no rke k3s rancher
+prefix=rke # no rke k3s
 k3s_channel=stable # latest
-rke2_channel=v1.22 #v1.21
+rke2_channel=v1.23 #v1.21
 profile=cis-1.6
 selinux=false # false
 
@@ -34,7 +33,6 @@ ingress=traefik # traefik
 
 # stackrox automation.
 export REGISTRY_USERNAME=AndyClemenko
-export rox_version=3.70.x-46-g252ef30ffd
 
 ######  NO MOAR EDITS #######
 RED=$(tput setaf 1)
@@ -169,9 +167,9 @@ sysctl -p' > /dev/null 2>&1
 echo "$GREEN" "ok" "$NORMAL"
 
 #or deploy k3s
-if [ "$orchestrator" != k3s ] && [ "$orchestrator" != rke ]; then exit; fi
+if [ "$prefix" != k3s ] && [ "$prefix" != rke ]; then exit; fi
 
-if [ "$orchestrator" = k3s ]; then
+if [ "$prefix" = k3s ]; then
   echo -n " deploying k3s"
   if [ "$selinux" = true ]; then selinux_file="--selinux"; else selinux_file=""; fi
 
@@ -188,7 +186,7 @@ fi
 
 #or deploy rke2
 # https://docs.rke2.io/install/methods/#enterprise-linux-8
-if [ "$orchestrator" = rke ]; then
+if [ "$prefix" = rke ]; then
   echo -n " deploying rke2 "
   if [ "$ingress" = nginx ]; then ingress_file="#disable: rke2-ingress-nginx"; else ingress_file="disable: rke2-ingress-nginx"; fi
   if [ "$selinux" = true ]; then selinux_file="true"; else selinux_file="false"; fi
@@ -224,7 +222,7 @@ function rancher () {
   kubectl create ns cattle-system > /dev/null 2>&1
   # add additional CAs
   # from mkcert
-  kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=rootCA.pem > /dev/null 2>&1
+  #kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=rootCA.pem > /dev/null 2>&1
 
   echo -n " - helming "
   helm repo add rancher-latest https://releases.rancher.com/server-charts/latest > /dev/null 2>&1
@@ -238,7 +236,8 @@ function rancher () {
   #kubectl -n cattle-system create secret generic tls-ca --from-file=cacerts.pem
   #kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=cacerts.pem
 
-  helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set additionalTrustedCAs=true > /dev/null 2>&1
+  helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath > /dev/null 2>&1
+  # --set additionalTrustedCAs=true 
   # --version 2.6.4-rc4 --devel
 
   echo "$GREEN" "ok" "$NORMAL"
@@ -290,7 +289,7 @@ function longhorn () {
   # testing out ` kubectl wait --for condition=containersready -n longhorn-system pod --all`
 
   kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
-  if [ "$orchestrator" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
+  if [ "$prefix" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
 
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_longhorn.yml > /dev/null 2>&1
 
@@ -305,9 +304,9 @@ function traefik () {
   echo -n  " - traefik "
   # helm repo add traefik https://helm.traefik.io/traefik
   if [ "$ingress" = traefik ]; then
-    if [ "$orchestrator" = rke ]; then 
+    if [ "$prefix" = rke ]; then 
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_rke.yml > /dev/null 2>&1
-    elif [ "$orchestrator" = k3s ]; then
+    elif [ "$prefix" = k3s ]; then
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
     fi
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
@@ -319,12 +318,12 @@ function traefik () {
 
 ################################ neu ##############################
 function neu () {
-  echo -n  "  - neuvector "
+  echo -n  " - neuvector "
   helm repo update > /dev/null 2>&1
   kubectl create namespace neuvector > /dev/null 2>&1
   kubectl create serviceaccount neuvector -n neuvector > /dev/null 2>&1
   kubectl apply -f ~/Dropbox/work/neuvector/neu_traefik.yaml > /dev/null 2>&1
-  helm install neuvector --namespace neuvector neuvector/core  --set imagePullSecrets=regsecret -f ~/Dropbox/work/neuvector/neu_values.yml > /dev/null 2>&1
+  helm upgrade -i neuvector --namespace neuvector neuvector/core  --set imagePullSecrets=regsecret -f ~/Dropbox/work/neuvector/neu_values.yml > /dev/null 2>&1
 
   until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -n .; sleep 1; done
 
@@ -399,9 +398,14 @@ function rox () {
   echo "$GREEN""ok" "$NORMAL"
 }
 
+############################# fleet ################################
+function fleet () {
+  # fix the local cluster in the group issue
+  echo -n " deploying with fleet:"; kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml> /dev/null 2>&1; echo "$GREEN""ok" 
+}
+
 ############################# demo ################################
 function demo () {
-  command -v linkerd >/dev/null 2>&1 || { echo "$RED" " ** Linkerd was not found. Please install ** " "$NORMAL" >&2; exit 1; }
   server=$(sed -n 1p hosts.txt|awk '{print $1}')
 
   echo " deploying:"
@@ -413,31 +417,14 @@ function demo () {
   echo -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   
   echo -n " - minio "
-   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
+#   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
+   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio.yml > /dev/null 2>&1
   # https://github.com/minio/minio/blob/master/helm/minio/values.yaml
    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio_traefik.yml > /dev/null 2>&1
    echo "$GREEN""ok" "$NORMAL"
 
   echo -n " - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1
    # curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_TOKEN
-  echo "$GREEN""ok" "$NORMAL"
-
-  echo -n " - linkerd "; 
-  #linkerd install | sed "s/localhost|/linkerd.$domain|localhost|/g" | kubectl apply -f - > /dev/null 2>&1
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/linkerd_traefik.yml > /dev/null 2>&1
-  echo "$GREEN""ok" "$NORMAL"
-
-  echo -n " - prometheus/grafana "
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/prometheus.yml > /dev/null 2>&1
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/kube-state-metrics-complete.yml > /dev/null 2>&1
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/prometheus/prometheus_grafana_dashboards.yml > /dev/null 2>&1
-  echo "$GREEN""ok" "$NORMAL"
-
-  echo -n " - openfaas "
-  #kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml > /dev/null 2>&1
-  #kubectl -n openfaas create secret generic basic-auth --from-literal=basic-auth-user=admin --from-literal=basic-auth-password="$password" > /dev/null 2>&1
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/openfass.yml > /dev/null 2>&1
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/openfaas_traefik.yml  > /dev/null 2>&1
   echo "$GREEN""ok" "$NORMAL"
 
   echo -n " - harbor "
@@ -489,6 +476,8 @@ function keycloak () {
   curl -sk -X POST https://$KEY_URL/auth/admin/realms/rancher/clients/$client_id/protocol-mappers/models -H "authorization: Bearer $key_token" -H 'accept: application/json, text/plain, */*' -H 'content-type: application/json;charset=UTF-8' -d '{"protocol":"openid-connect","config":{"full.path":"true","id.token.claim":"false","access.token.claim":"false","userinfo.token.claim":"true","claim.name":"groups"},"name":"Groups Mapper","protocolMapper":"oidc-group-membership-mapper"}'
 
   curl -sk -X POST https://$KEY_URL/auth/admin/realms/rancher/clients/$client_id/protocol-mappers/models -H "authorization: Bearer $key_token" -H 'accept: application/json, text/plain, */*' -H 'content-type: application/json;charset=UTF-8' -d '{"protocol":"openid-connect","config":{"id.token.claim":"false","access.token.claim":"true","included.client.audience":"rancher"},"name":"Client Audience","protocolMapper":"oidc-audience-mapper"}' 
+
+  curl -sk -X POST https://$KEY_URL/auth/admin/realms/rancher/clients/$client_id/protocol-mappers/models -H "authorization: Bearer $key_token" -H 'accept: application/json, text/plain, */*' -H 'content-type: application/json;charset=UTF-8' -d '{"protocol":"openid-connect","config":{"full.path":"true","id.token.claim":"true","access.token.claim":"true","userinfo.token.claim":"true","claim.name":"full_group_path"},"name":"Group Path","protocolMapper":"oidc-group-membership-mapper"}'
 
   # add keycloak user clemenko / Pa22word
   curl -k 'https://keycloak.'$domain'/auth/admin/realms/rancher/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":[],"credentials":[{"type":"password","value":"Pa22word","temporary":false}],"username":"clemenko","emailVerified":"","firstName":"Andy","lastName":"Clemenko"}' 
@@ -572,6 +561,7 @@ case "$1" in
         longhorn) longhorn;;
         rancher) rancher;;
         demo) demo;;
+        fleet) fleet;;
         slides) slides;;
         full) up && traefik && sleep 5 && longhorn && rancher && demo && slides;;
         *) usage;;
