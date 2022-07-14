@@ -274,6 +274,9 @@ EOF
   curl -sk https://rancher.$domain/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
   echo "$GREEN" "ok" "$NORMAL"
 
+  #fix for local cluster fleet
+  kubectl patch ClusterGroup -n fleet-local default --type=json -p='[{"op": "remove", "path": "/spec/selector/matchLabels/name"}]' > /dev/null 2>&1
+
 }
 
 ################################ longhorn ##############################
