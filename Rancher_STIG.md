@@ -1,4 +1,4 @@
-# Rancher STIG Mitigation
+# Rancher STIG tl;dr
 
 Just a simple guide for navigating the Rancher 2.6 STIG from DISA. There is a nice article about it from [Businesswire](https://www.businesswire.com/news/home/20220425005143/en/DISA-Validates-Rancher-Government-Solutions%E2%80%99-Security-Technical-Implementation-Guide-for-the-Rancher-Multi-cluster-Manager-2.6-for-Kubernetes).
 
