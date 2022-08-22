@@ -81,8 +81,8 @@ mkdir /root/rke2-artifacts && cd /root/rke2-artifacts/
 curl -#OL https://github.com/rancher/rke2/releases/download/v1.24.3%2Brke2r1/rke2-images.linux-amd64.tar.zst
 curl -#OL https://github.com/rancher/rke2/releases/download/v1.24.3%2Brke2r1/rke2.linux-amd64.tar.gz
 curl -#OL https://github.com/rancher/rke2/releases/download/v1.24.3%2Brke2r1/sha256sum-amd64.txt
-curl -#OL https://rpm.rancher.io/rke2/latest/common/centos/8/noarch/rke2-selinux-0.9-1.el8.noarch.rpm
-curl -#OL https://rpm.rancher.io/rke2/latest/1.24/centos/8/x86_64/rke2-common-1.24.3~rke2r1-0.el8.x86_64.rpm
+curl -#OL https://github.com/rancher/rke2-selinux/releases/download/v0.9.stable.1/rke2-selinux-0.9-1.el8.noarch.rpm
+curl -#OL https://github.com/rancher/rke2-packaging/releases/download/v1.24.3%2Brke2r1.stable.0/rke2-common-1.24.3.rke2r1-0.x86_64.rpm
 
 yum install -y container-selinux iptables libnetfilter_conntrack libnfnetlink libnftnl policycoreutils-python-utils rke2-common-1.24.3~rke2r1-0.el8.x86_64.rpm rke2-selinux-0.9-1.el8.noarch.rpm 
 
