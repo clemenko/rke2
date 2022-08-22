@@ -78,9 +78,9 @@ curl -sk https://$rancherUrl/v1/catalog.cattle.io.clusterrepos/rancher-charts?ac
 
 ```bash
 mkdir /root/rke2-artifacts && cd /root/rke2-artifacts/
-curl -#OL https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/rke2-images.linux-amd64.tar.zst
-curl -#OL https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/rke2.linux-amd64.tar.gz
-curl -#OL https://github.com/rancher/rke2/releases/download/v1.21.7%2Brke2r1/sha256sum-amd64.txt
+curl -#OL https://github.com/rancher/rke2/releases/download/v1.24.3%2Brke2r1/rke2-images.linux-amd64.tar.zst
+curl -#OL https://github.com/rancher/rke2/releases/download/v1.24.3%2Brke2r1/rke2.linux-amd64.tar.gz
+curl -#OL https://github.com/rancher/rke2/releases/download/v1.24.3%2Brke2r1/sha256sum-amd64.txt
 
 dnf install -y container-selinux iptables libnetfilter_conntrack libnfnetlink libnftnl policycoreutils-python-utils
 
