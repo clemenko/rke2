@@ -410,7 +410,10 @@ function rox () {
 ############################# fleet ################################
 function fleet () {
   # fix the local cluster in the group issue
-  echo -n " deploying with fleet:"; kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml > /dev/null 2>&1; echo "$GREEN""ok" 
+  echo -n " deploying with fleet:"
+  kubectl patch ClusterGroup -n fleet-local default --type=json -p='[{"op": "remove", "path": "/spec/selector/matchLabels/name"}]'
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml > /dev/null 2>&1
+  echo "$GREEN""ok" 
 }
 
 ############################# demo ################################
