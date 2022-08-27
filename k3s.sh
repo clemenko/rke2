@@ -33,6 +33,7 @@ ingress=traefik # traefik
 
 # stackrox automation.
 export REGISTRY_USERNAME=AndyClemenko
+export rox_version=3.71.x-401-g7642fa7f7a
 
 ######  NO MOAR EDITS #######
 RED=$(tput setaf 1)
@@ -237,13 +238,14 @@ function rancher () {
 
   helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true > /dev/null 2>&1 #--version v1.6.1
 
-  #custom TLS certs
-  #kubectl -n cattle-system create secret tls tls-rancher-ingress --cert=tls.crt --key=tls.key
-  #kubectl -n cattle-system create secret generic tls-ca --from-file=cacerts.pem
-  #kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=cacerts.pem
+  # custom TLS certs
+  # kubectl -n cattle-system create secret tls tls-rancher-ingress --cert=tls.crt --key=tls.key
+  # kubectl -n cattle-system create secret generic tls-ca --from-file=cacerts.pem
+  # kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=cacerts.pem
 
+  # helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set additionalTrustedCAs=true --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true
+ 
   helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath > /dev/null 2>&1
-  # --set additionalTrustedCAs=true 
   # --version 2.6.4-rc4 --devel
 
   echo "$GREEN" "ok" "$NORMAL"
@@ -300,7 +302,7 @@ function longhorn () {
   kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
   if [ "$prefix" = k3s ]; then kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"false"}}}' > /dev/null 2>&1; fi
 
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_longhorn.yml > /dev/null 2>&1
+  if [ "$ingress" = traefik ]; then kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_longhorn.yml > /dev/null 2>&1; fi;
 
   # add encryption per volume storage class 
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/longhorn_encryption.yml > /dev/null 2>&1
@@ -428,8 +430,12 @@ function demo () {
 
   echo -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
   
-  echo -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/ghost.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/ghost.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
 
+  echo -n " - gitea "
+    helm upgrade -i gitea gitea-charts/gitea --namespace git --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=1Gi --set postgresql.persistence.size=1Gi --set gitea.config.server.ROOT_URL=http://git.rfed.me --set gitea.config.server.DOMAIN=git.rfed.me > /dev/null 2>&1
+  echo "$GREEN""ok" "$NORMAL"
+  
   echo -n " - minio "
 #   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio.yml > /dev/null 2>&1
