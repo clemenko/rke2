@@ -184,3 +184,60 @@ Move the tar and shell script.
 ./rancher-load-images.sh --image-list ./rancher-images.txt --registry <REGISTRY.YOURDOMAIN.COM:PORT>
 
 ```
+
+## STIG
+
+```bash
+profile: cis-1.6
+selinux: true
+write-kubeconfig-mode: 0640
+use-service-account-credentials: true
+kube-controller-manager-arg:
+- "tls-min-version=VersionTLS12"
+- "tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+kube-scheduler-arg:
+- "tls-min-version=VersionTLS12"
+- "tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+kube-apiserver-arg:
+- "tls-min-version=VersionTLS12"
+- "tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+- "authorization-mode=RBAC,Node"
+- "anonymous-auth=false"
+- "audit-policy-file=/etc/rancher/rke2/audit-policy.yaml"
+- "audit-log-mode=blocking-strict"
+kubelet-arg:
+- "protect-kernel-defaults=true"
+
+
+
+echo "Creating Auto Policy.."
+cat <<EOT > /etc/rancher/rke2/audit-policy.yaml
+apiVersion: audit.k8s.io/v1
+kind: Policy
+rules:
+- level: RequestResponse
+EOT
+
+
+agent:
+
+cat <<EOT >> /etc/rancher/rke2/config.yaml
+node-name: $1
+token-file: /etc/rancher/rke2/join_token
+server: https://$3:9345
+write-kubeconfig-mode: 0640
+profile: cis-1.6
+kube-apiserver-arg:
+- "authorization-mode=RBAC,Node"
+kubelet-arg:
+- "protect-kernel-defaults=true"
+EOT
+
+
+
+echo "Adding Canal config file.."
+cat >> /etc/NetworkManager/conf.d/rke2-canal.conf << EOF
+[keyfile]
+unmanaged-devices=interface-name:cali*;interface-name:flannel*
+EOF
+```

@@ -24,7 +24,7 @@ image=rockylinux-8-x64
 # rancher / k8s
 prefix=rke # no rke k3s
 k3s_channel=stable # latest
-rke2_channel=v1.23 #v1.21
+rke2_channel=v1.24 #v1.21
 profile=cis-1.6
 selinux=false # false
 
@@ -118,6 +118,7 @@ echo -n " updating kernel settings"
 pdsh -l $user -w $host_list 'cat << EOF >> /etc/sysctl.conf
 # SWAP settings
 vm.swappiness=0
+vm.panic_on_oom=0
 vm.overcommit_memory=1
 kernel.panic=10
 kernel.panic_on_oops=1
@@ -313,12 +314,15 @@ function longhorn () {
 ################################ traefik ##############################
 function traefik () {
   echo -n  " - traefik "
-  # helm repo add traefik https://helm.traefik.io/traefik
+  #helm repo add traefik https://helm.traefik.io/traefik
+
   if [ "$ingress" = traefik ]; then
     if [ "$prefix" = rke ]; then 
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_rke.yml > /dev/null 2>&1
+        # helm upgrade -i traefik traefik/traefik --namespace traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
     elif [ "$prefix" = k3s ]; then
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
+        # helm upgrade -i traefik traefik/traefik --namespace traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
     fi
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
     echo "$GREEN" "ok" "$NORMAL"
