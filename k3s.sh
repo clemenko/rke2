@@ -104,7 +104,7 @@ doctl compute domain records create $domain --record-type A --record-name $prefi
 doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix.$domain. > /dev/null 2>&1
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
-sleep 5
+sleep 10
 
 #host modifications
 if [[ "$image" = *"ubuntu"* ]]; then
