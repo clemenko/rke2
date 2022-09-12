@@ -36,18 +36,24 @@ export REGISTRY_USERNAME=AndyClemenko
 export rox_version=3.71.x-401-g7642fa7f7a
 
 ######  NO MOAR EDITS #######
-RED=$(tput setaf 1)
-GREEN=$(tput setaf 2)
-NORMAL=$(tput sgr0)
-BLUE=$(tput setaf 4)
+#RED=$(tput setaf 1)
+#GREEN=$(tput setaf 2)
+#NO_COLOR=$(tput sgr0)
+#BLUE=$(tput setaf 4)
+
+export RED='\x1b[0;31m'
+export GREEN='\x1b[32m'
+export BLUE='\x1b[34m'
+export YELLOW='\x1b[33m'
+export NO_COLOR='\x1b[0m'
 
 #better error checking
-command -v doctl >/dev/null 2>&1 || { echo "$RED" " ** Doctl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
-command -v curl >/dev/null 2>&1 || { echo "$RED" " ** Curl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
-command -v jq >/dev/null 2>&1 || { echo "$RED" " ** Jq was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
-command -v pdsh >/dev/null 2>&1 || { echo "$RED" " ** Pdsh was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
-command -v k3sup >/dev/null 2>&1 || { echo "$RED" " ** K3sup was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
-command -v kubectl >/dev/null 2>&1 || { echo "$RED" " ** Kubectl was not found. Please install. ** " "$NORMAL" >&2; exit 1; }
+command -v doctl >/dev/null 2>&1 || { echo -e "$RED" " ** Doctl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
+command -v curl >/dev/null 2>&1 || { echo -e "$RED" " ** Curl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo -e "$RED" " ** Jq was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
+command -v pdsh >/dev/null 2>&1 || { echo -e "$RED" " ** Pdsh was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
+command -v k3sup >/dev/null 2>&1 || { echo -e "$RED" " ** K3sup was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
+command -v kubectl >/dev/null 2>&1 || { echo -e "$RED" " ** Kubectl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
 
 if [ -f hosts.txt ]; then server=$(sed -n 1p hosts.txt|awk '{print $1}'); fi
 
@@ -55,10 +61,10 @@ if [ -f hosts.txt ]; then server=$(sed -n 1p hosts.txt|awk '{print $1}'); fi
 function up () {
 export PDSH_RCMD_TYPE=ssh
 build_list=""
-helm repo update > /dev/null 2>&1
+# helm repo update > /dev/null 2>&1
 
 if [ -f hosts.txt ]; then
-  echo "$RED" "Warning - cluster already detected..." "$NORMAL"
+  echo -e "$RED" "Warning - cluster already detected..." "$NO_COLOR"
   exit
 fi
 
@@ -66,26 +72,26 @@ fi
 for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 
 #build VMS
-echo -n " building vms -$build_list"
+echo -e -n " building vms -$build_list"
 doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --wait > /dev/null 2>&1
 doctl compute droplet list|grep -v ID|grep $prefix|awk '{print $3" "$2}'|sort -k 2 > hosts.txt
-echo "$GREEN" "ok" "$NORMAL"
+echo -e "$GREEN" "ok" "$NO_COLOR"
 
 # add block storage
 if [ "$block_volume" -gt "0" ]; then 
-  echo -n " adding block storage "
+  echo -e -n " adding block storage "
     for i in $(awk '{print $2}' hosts.txt); do 
       doctl compute volume-action attach $(doctl compute volume create $i --region $zone --size $block_volume"GiB" |grep $i| awk '{print $1}') $(doctl compute droplet list | grep $i |awk '{print $1}') > /dev/null 2>&1
     done
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
 
 #check for SSH
-echo -n " checking for ssh "
+echo -e -n " checking for ssh "
 for ext in $(awk '{print $1}' hosts.txt); do
-  until [ $(ssh -o ConnectTimeout=1 $user@$ext 'exit' 2>&1 | grep 'timed out\|refused' | wc -l) = 0 ]; do echo -n "." ; sleep 5; done
+  until [ $(ssh -o ConnectTimeout=1 $user@$ext 'exit' 2>&1 | grep 'timed out\|refused' | wc -l) = 0 ]; do echo -e -n "." ; sleep 5; done
 done
-echo "$GREEN" "ok" "$NORMAL"
+echo -e "$GREEN" "ok" "$NO_COLOR"
 
 #get ips
 host_list=$(awk '{printf $1","}' hosts.txt|sed 's/,$//')
@@ -93,28 +99,28 @@ server=$(sed -n 1p hosts.txt|awk '{print $1}')
 worker_list=$(sed 1d hosts.txt| awk '{printf $1","}'|sed 's/,$//')
 
 #update DNS
-echo -n " updating dns"
+echo -e -n " updating dns"
 doctl compute domain records create $domain --record-type A --record-name $prefix --record-ttl 300 --record-data $server > /dev/null 2>&1
 doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix.$domain. > /dev/null 2>&1
-echo "$GREEN" "ok" "$NORMAL"
+echo -e "$GREEN" "ok" "$NO_COLOR"
 
 sleep 5
 
 #host modifications
 if [[ "$image" = *"ubuntu"* ]]; then
-  echo -n " adding os packages"
-  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; echo "PubkeyAcceptedKeyTypes=+ssh-rsa" >> /etc/ssh/sshd_config; systemctl restart sshd; export DEBIAN_FRONTEND=noninteractive; apt update; apt install nfs-common -y;  #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e -n " adding os packages"
+  pdsh -l $user -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; echo -e "PubkeyAcceptedKeyTypes=+ssh-rsa" >> /etc/ssh/sshd_config; systemctl restart sshd; export DEBIAN_FRONTEND=noninteractive; apt update; apt install nfs-common -y;  #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
 
 if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
-  echo -n " adding os packages"
+  echo -e -n " adding os packages"
   pdsh -l $user -w $host_list 'mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; #yum update -y' > /dev/null 2>&1
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
 
 #kernel tuning
-echo -n " updating kernel settings"
+echo -e -n " updating kernel settings"
 pdsh -l $user -w $host_list 'cat << EOF >> /etc/sysctl.conf
 # SWAP settings
 vm.swappiness=0
@@ -166,13 +172,13 @@ fs.inotify.max_user_instances=8192
 fs.inotify.max_user_watches=1048576
 EOF
 sysctl -p' > /dev/null 2>&1
-echo "$GREEN" "ok" "$NORMAL"
+echo -e "$GREEN" "ok" "$NO_COLOR"
 
 #or deploy k3s
 if [ "$prefix" != k3s ] && [ "$prefix" != rke ]; then exit; fi
 
 if [ "$prefix" = k3s ]; then
-  echo -n " deploying k3s"
+  echo -e -n " deploying k3s"
   if [ "$selinux" = true ]; then selinux_file="--selinux"; else selinux_file=""; fi
 
   k3sup install --ip $server --user $user --k3s-extra-args '--no-deploy traefik '$selinux_file'' --cluster --k3s-channel $k3s_channel --local-path ~/.kube/config > /dev/null 2>&1
@@ -183,13 +189,13 @@ if [ "$prefix" = k3s ]; then
   
   rsync -avP ~/.kube/config $user@$server:/opt/kube/config > /dev/null 2>&1
   
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
 
 #or deploy rke2
 # https://docs.rke2.io/install/methods/#enterprise-linux-8
 if [ "$prefix" = rke ]; then
-  echo -n " deploying rke2 "
+  echo -e -n " deploying rke2 "
   if [ "$ingress" = nginx ]; then ingress_file="#disable: rke2-ingress-nginx"; else ingress_file="disable: rke2-ingress-nginx"; fi
   if [ "$selinux" = true ]; then selinux_file="true"; else selinux_file="false"; fi
 
@@ -207,32 +213,32 @@ if [ "$prefix" = rke ]; then
   rsync -avP $user@$server:/etc/rancher/rke2/rke2.yaml ~/.kube/config > /dev/null 2>&1
   sed -i'' -e "s/127.0.0.1/$server/g" ~/.kube/config 
 
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
 
-echo -n " - cluster active "
+echo -e -n " - cluster active "
 sleep 5
-until [ $(kubectl get node|grep NotReady|wc -l) = 0 ]; do echo -n "."; sleep 2; done
-echo "$GREEN" "ok" "$NORMAL"
+until [ $(kubectl get node|grep NotReady|wc -l) = 0 ]; do echo -e -n "."; sleep 2; done
+echo -e "$GREEN" "ok" "$NO_COLOR"
 }
 
 ################################ rancher ##############################
 function rancher () {
 
   if [ ! -f hosts.txt ]; then
-    echo "$BLUE" "Building cluster first." "$NORMAL"
+    echo -e "$BLUE" "Building cluster first." "$NO_COLOR"
     up && traefik && longhorn
   fi
 
-  echo " deploying rancher server "
+  echo -e " deploying rancher server "
 
-  echo -n " - creating namespace and adding CAs"
+  echo -e -n " - creating namespace and adding CAs"
   kubectl create ns cattle-system > /dev/null 2>&1
   # add additional CAs
   # from mkcert
   #kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=rootCA.pem > /dev/null 2>&1
 
-  echo -n " - helming "
+  echo -e -n " - helming "
   helm repo add rancher-latest https://releases.rancher.com/server-charts/latest > /dev/null 2>&1
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts > /dev/null 2>&1
   helm repo add jetstack https://charts.jetstack.io > /dev/null 2>&1
@@ -249,21 +255,21 @@ function rancher () {
   helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath > /dev/null 2>&1
   # --version 2.6.4-rc4 --devel
 
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 
   #traefik
   if [ "$ingress" = traefik ]; then kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher_traefik.yml  > /dev/null 2>&1; fi 
 
   # wait for rancher
-  echo -n " - waiting for rancher "
+  echo -e -n " - waiting for rancher "
   until [ $(curl -sk https://rancher.$domain/v3-public/authtokens | grep uuid | wc -l) = 1 ]; do 
     sleep 2
-    echo -n "." 
+    echo -e -n "." 
     done
   token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"bootStrapAllTheThings"}' | jq -r .token)
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 
-  echo -n " - bootstrapping "
+  echo -e -n " - bootstrapping "
 cat <<EOF | kubectl apply -f -  > /dev/null 2>&1
 apiVersion: management.cattle.io/v3
 kind: Setting
@@ -281,7 +287,7 @@ EOF
   curl -sk https://rancher.$domain/v3/settings/server-url -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"name":"server-url","value":"https://rancher.'$domain'"}'  > /dev/null 2>&1
 
   curl -sk https://rancher.$domain/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 
   #fix for local cluster fleet
   kubectl patch ClusterGroup -n fleet-local default --type=json -p='[{"op": "remove", "path": "/spec/selector/matchLabels/name"}]' > /dev/null 2>&1
@@ -290,14 +296,14 @@ EOF
 
 ################################ longhorn ##############################
 function longhorn () {
-  echo -n  " - longhorn "
+  echo -e -n  " - longhorn "
   kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
 #  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.4/deploy/longhorn.yaml > /dev/null 2>&1
 
   sleep 5
 
   #wait for longhorn to initiaize
-  until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ] && [ "$(kubectl get pod -n longhorn-system | wc -l)" -gt 20 ] ; do echo -n "." ; sleep 2; done
+  until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ] && [ "$(kubectl get pod -n longhorn-system | wc -l)" -gt 20 ] ; do echo -e -n "." ; sleep 2; done
   # testing out ` kubectl wait --for condition=containersready -n longhorn-system pod --all`
 
   kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
@@ -308,12 +314,12 @@ function longhorn () {
   # add encryption per volume storage class 
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/longhorn_encryption.yml > /dev/null 2>&1
 
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 }
 
 ################################ traefik ##############################
 function traefik () {
-  echo -n  " - traefik "
+  echo -e -n  " - traefik "
   #helm repo add traefik https://helm.traefik.io/traefik
 
   if [ "$ingress" = traefik ]; then
@@ -325,22 +331,22 @@ function traefik () {
         # helm upgrade -i traefik traefik/traefik --namespace traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
     fi
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
-    echo "$GREEN" "ok" "$NORMAL"
+    echo -e "$GREEN" "ok" "$NO_COLOR"
   else 
-   echo "$RED" "nginx installed" "$NORMAL"
+   echo -e "$RED" "nginx installed" "$NO_COLOR"
   fi
 }
 
 ################################ neu ##############################
 function neu () {
-  echo -n  " - neuvector "
+  echo -e -n  " - neuvector "
   helm repo update > /dev/null 2>&1
   kubectl create namespace neuvector > /dev/null 2>&1
   kubectl create serviceaccount neuvector -n neuvector > /dev/null 2>&1
   kubectl apply -f ~/Dropbox/work/neuvector/neu_traefik.yaml > /dev/null 2>&1
   helm upgrade -i neuvector --namespace neuvector neuvector/core  --set imagePullSecrets=regsecret -f ~/Dropbox/work/neuvector/neu_values.yml > /dev/null 2>&1
 
-  until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -n .; sleep 1; done
+  until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -e -n .; sleep 1; done
 
   TOKEN=$(curl -sk -H "Content-Type: application/json" https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}' | jq  -r .token.token)
 
@@ -352,30 +358,30 @@ function neu () {
 
   curl -sk -X POST -H "Content-Type: application/json" -H 'Accept: application/json, text/plain, */*' -H 'Token: '$TOKEN https://neuvector.$domain/license/update -d '{"license_key":"'$(cat neuvector.lic)'"}' --compressed > /dev/null 2>&1
 
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 }
 
 ################################ rox ##############################
 function rox () {
 # ensure no central-bundle is not present
   if [ -d central-bundle ]; then
-    echo "$RED" "Warning - cental-bundle already detected..." "$NORMAL"
+    echo -e "$RED" "Warning - cental-bundle already detected..." "$NO_COLOR"
     exit
   fi
 
 # check for credentials for help.stackrox.com 
-#  if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
+#  if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo -e "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
 
 # get latest roxctl
 # for MacOS you may need to remove the quarentine for it
 # xattr -d com.apple.quarantine /usr/local/bin/roxctl
-  echo -n " getting latest roxctl "
+  echo -e -n " getting latest roxctl "
     curl -#L https://mirror.openshift.com/pub/rhacs/assets/latest/bin/Darwin/roxctl -o /usr/local/bin/roxctl > /dev/null 2>&1
     chmod 755 /usr/local/bin/roxctl
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 
-  echo " deploying :"
-  echo -n  "  - stackrox "  
+  echo -e " deploying :"
+  echo -e -n  "  - stackrox "  
 # generate stackrox yaml
 #  roxctl central generate k8s pvc  --storage-class longhorn --size 5 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
   roxctl central generate k8s pvc --storage-class longhorn --size 10 --enable-telemetry=false --lb-type np --password $password  --main-image quay.io/stackrox-io/main:$rox_version --scanner-db-image quay.io/stackrox-io/scanner-db:$rox_version --scanner-image quay.io/stackrox-io/scanner:$rox_version > /dev/null 2>&1
@@ -392,7 +398,7 @@ function rox () {
   rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
   
 # wait for central to be up
-  until [ $(curl -kIs --max-time 5 --connect-timeout 5 https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -n "." ; sleep 2; done
+  until [ $(curl -kIs --max-time 5 --connect-timeout 5 https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -e -n "." ; sleep 2; done
   
 # setup and install scanner
   ./central-bundle/scanner/scripts/setup.sh > /dev/null 2>&1
@@ -405,60 +411,60 @@ function rox () {
 # install sensors
   ./sensor-k3s/sensor.sh > /dev/null 2>&1
 
-  echo "$GREEN" "ok" "$NORMAL"
+  echo -e "$GREEN" "ok" "$NO_COLOR"
 
-  echo -n "  - creating api token "
+  echo -e -n "  - creating api token "
   sleep 5
   curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token > ROX_API_TOKEN
-  echo "$GREEN""ok" "$NORMAL"
+  echo -e "$GREEN""ok" "$NO_COLOR"
 }
 
 ############################# fleet ################################
 function fleet () {
   # fix the local cluster in the group issue
-  echo -n " deploying with fleet:"
+  echo -e -n " deploying with fleet:"
   kubectl patch ClusterGroup -n fleet-local default --type=json -p='[{"op": "remove", "path": "/spec/selector/matchLabels/name"}]'
   kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml > /dev/null 2>&1
-  echo "$GREEN""ok" "$NORMAL"
+  echo -e "$GREEN""ok" "$NO_COLOR"
 }
 
 ############################# demo ################################
 function demo () {
   server=$(sed -n 1p hosts.txt|awk '{print $1}')
 
-  echo " deploying:"
+  echo -e " deploying:"
 
-  #echo -n " - graylog "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  #echo -e -n " - graylog "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
 
-  echo -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -e -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
 
-  echo -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple.yml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -e -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple.yml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
   
-  echo -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/ghost.yaml > /dev/null 2>&1; echo "$GREEN""ok" "$NORMAL"
+  echo -e -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/ghost.yaml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
 
-  echo -n " - gitea "
+  echo -e -n " - gitea "
     helm upgrade -i gitea gitea-charts/gitea --namespace git --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=1Gi --set postgresql.persistence.size=1Gi --set gitea.config.server.ROOT_URL=http://git.rfed.me --set gitea.config.server.DOMAIN=git.rfed.me > /dev/null 2>&1
-  echo "$GREEN""ok" "$NORMAL"
+  echo -e "$GREEN""ok" "$NO_COLOR"
   
-  echo -n " - minio "
+  echo -e -n " - minio "
 #   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio.yml > /dev/null 2>&1
   # https://github.com/minio/minio/blob/master/helm/minio/values.yaml
    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio_traefik.yml > /dev/null 2>&1
-   echo "$GREEN""ok" "$NORMAL"
+   echo -e "$GREEN""ok" "$NO_COLOR"
 
-  echo -n " - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1
+  echo -e -n " - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1
    # curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_TOKEN
-  echo "$GREEN""ok" "$NORMAL"
+  echo -e "$GREEN""ok" "$NO_COLOR"
 
-  echo -n " - harbor "
+  echo -e -n " - harbor "
   #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/harbor_traefik_ingress.yml > /dev/null 2>&1
-  echo "$GREEN""ok" "$NORMAL"
+  echo -e "$GREEN""ok" "$NO_COLOR"
 
-  echo -n " - code-server "
+  echo -e -n " - code-server "
   rsync -avP ~/.kube/config $user@$server:/opt/kube/config > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/code-server.yml > /dev/null 2>&1
-  echo "$GREEN""ok" "$NORMAL"
+  echo -e "$GREEN""ok" "$NO_COLOR"
 } 
 
 ################################ keycloak ##############################
@@ -468,17 +474,17 @@ function keycloak () {
   KEY_URL=keycloak.$domain
   RANCHER_URL=rancher.$domain
 
-  echo " keycloaking"
-  echo -n " - deploying "
+  echo -e " keycloaking"
+  echo -e -n " - deploying "
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml > /dev/null 2>&1
-  echo "$GREEN""ok" "$NORMAL"
+  echo -e "$GREEN""ok" "$NO_COLOR"
   
-  echo -n " - waiting for url"
+  echo -e -n " - waiting for url"
 
-  until [ $(curl -sk https://keycloak.$domain/auth/ | grep "Administration Console" | wc -l) = 1 ]; do echo -n "." ; sleep 2; done
-  echo "$GREEN"" ok" "$NORMAL"
+  until [ $(curl -sk https://keycloak.$domain/auth/ | grep "Administration Console" | wc -l) = 1 ]; do echo -e -n "." ; sleep 2; done
+  echo -e "$GREEN"" ok" "$NO_COLOR"
 
-  echo -n " - adding realm and client "
+  echo -e -n " - adding realm and client "
 
   # get auth token - notice keycloak's password 
   export key_token=$(curl -sk -X POST https://$KEY_URL/auth/realms/master/protocol/openid-connect/token -d 'client_id=admin-cli&username=admin&password='$password'&credentialId=&grant_type=password' | jq -r .access_token)
@@ -506,9 +512,9 @@ function keycloak () {
   # add keycloak user clemenko / Pa22word
   curl -k 'https://keycloak.'$domain'/auth/admin/realms/rancher/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":[],"credentials":[{"type":"password","value":"Pa22word","temporary":false}],"username":"clemenko","emailVerified":"","firstName":"Andy","lastName":"Clemenko"}' 
 
-  echo "$GREEN""ok" "$NORMAL"
+  echo -e "$GREEN""ok" "$NO_COLOR"
 
-  echo -n " - configuring rancher "
+  echo -e -n " - configuring rancher "
   # configure rancher
   token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"'$password'"}' | jq -r .token)
 
@@ -516,7 +522,7 @@ function keycloak () {
 
   curl -sk -X PUT https://rancher.$domain/v3/keyCloakOIDCConfigs/keycloakoidc?action=testAndEnable -H 'accept: application/json' -H 'accept-language: en-US,en;q=0.9' -H 'content-type: application/json;charset=UTF-8' -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"enabled":true,"id":"keycloakoidc","name":"keycloakoidc","type":"keyCloakOIDCConfig","accessMode":"unrestricted","rancherUrl":"https://rancher.'$domain'/verify-auth","scope":"openid profile email","clientId":"rancher","clientSecret":"'$client_secret'","issuer":"https://keycloak.'$domain'/auth/realms/rancher","authEndpoint":"https://keycloak.'$domain'/auth/realms/rancher/protocol/openid-connect/auth"}' > /dev/null 2>&1
 
-  echo "$GREEN""ok" "$NORMAL"
+  echo -e "$GREEN""ok" "$NO_COLOR"
 
 #  export ROX_URL=stackrox.$domain
   # config stackrox
@@ -529,10 +535,10 @@ function keycloak () {
 
 ############################# slides ################################
 function slides () {
-  echo -n " slides "
+  echo -e -n " slides "
   rsync -avP /Users/clemenko/Dropbox/work/talks/markdown/* $user@$server:/opt/slides > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/slides.yml > /dev/null 2>&1
-  echo "$GREEN""ok" "$NORMAL"
+  echo -e "$GREEN""ok" "$NO_COLOR"
 }
 
 ############################## kill ################################
@@ -540,37 +546,37 @@ function slides () {
 function kill () {
 
 if [ -f hosts.txt ]; then
-  echo -n " killing it all "
+  echo -e -n " killing it all "
   for i in $(awk '{print $2}' hosts.txt); do doctl compute droplet delete --force $i; done
   for i in $(awk '{print $1}' hosts.txt); do ssh-keygen -q -R $i > /dev/null 2>&1; done
   for i in $(doctl compute domain records list $domain|grep ''$prefix'\|'$prefix''|awk '{print $1}'); do doctl compute domain records delete -f $domain $i; done
-  until [ $(doctl compute droplet list --no-header|grep $prefix|wc -l| sed 's/ //g') == 0 ]; do echo -n "."; sleep 2; done
+  until [ $(doctl compute droplet list --no-header|grep $prefix|wc -l| sed 's/ //g') == 0 ]; do echo -e -n "."; sleep 2; done
   for i in $(doctl compute volume list --no-header |awk '{print $1}'); do doctl compute volume delete -f $i; done
 
   rm -rf *.txt *.log *.zip *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN 
 
 else
-  echo -n " no hosts file found "
+  echo -e -n " no hosts file found "
 fi
 
-echo "$GREEN" "ok" "$NORMAL"
+echo -e "$GREEN" "ok" "$NO_COLOR"
 }
 
 ############################# usage ################################
 function usage () {
-  echo ""
-  echo "-------------------------------------------------"
-  echo ""
-  echo " Usage: $0 {up|kill|rox|demo|full}"
-  echo ""
-  echo " ./k3s.sh up # build the vms "
-  echo " ./k3s.sh simple # simple deployment"
-  echo " ./k3s.sh kill # kill the vms"
-  echo " ./k3s.sh demo # deploy demo apps"
-  echo " ./k3s.sh full # full send"
-  echo ""
-  echo "-------------------------------------------------"
-  echo ""
+  echo -e ""
+  echo -e "-------------------------------------------------"
+  echo -e ""
+  echo -e " Usage: $0 {up|kill|rox|demo|full}"
+  echo -e ""
+  echo -e "${BLUE} ./k3s.sh up # build the vms ${NO_COLOR}"
+  echo -e " ./k3s.sh simple # simple deployment"
+  echo -e " ./k3s.sh kill # kill the vms"
+  echo -e " ./k3s.sh demo # deploy demo apps"
+  echo -e " ./k3s.sh full # full send"
+  echo -e ""
+  echo -e "-------------------------------------------------"
+  echo -e ""
   exit 1
 }
 
