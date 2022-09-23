@@ -10,7 +10,8 @@ The script is meant to simplify the building of a demo stack for play and profit
 - [Minio](http://Minio.io) - S3 object store
 - [Traefik](http://traefik.io) - Ingress
 - [Jenkins](http://jenkins.io) - CI/CD
-- [Graylog](http://https://www.graylog.org) - Logging
+- [Gitea](https://gitea.io/en-us/) - Version Control
+~~- [Graylog](http://https://www.graylog.org) - Logging~~
 - [StackRox](http://stackrox.com) - Security / [NeuVector](https://github.com/neuvector/neuvector)
 - [KeyCloak](http://keycloak.org) - Authentication
 - [Harbor](http://goharbor.io) - Registry

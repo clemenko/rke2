@@ -33,7 +33,7 @@ ingress=traefik # traefik
 
 # stackrox automation.
 export REGISTRY_USERNAME=AndyClemenko
-export rox_version=3.71.x-401-g7642fa7f7a
+export rox_version=3.72.0-rc.5
 
 ######  NO MOAR EDITS #######
 #RED=$(tput setaf 1)
@@ -443,12 +443,17 @@ function demo () {
   echo -e -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/ghost.yaml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
 
   echo -e -n " - gitea "
-    helm upgrade -i gitea gitea-charts/gitea --namespace git --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=1Gi --set postgresql.persistence.size=1Gi --set gitea.config.server.ROOT_URL=http://git.rfed.me --set gitea.config.server.DOMAIN=git.rfed.me > /dev/null 2>&1
+    helm upgrade -i gitea gitea-charts/gitea --namespace git --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=1Gi --set postgresql.persistence.size=1Gi --set gitea.config.server.ROOT_URL=http://git.rfed.io --set gitea.config.server.DOMAIN=git.rfed.io > /dev/null 2>&1
+
+    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitea_traefik.yaml > /dev/null 2>&1;
+
+    # mirror github
+    curl -X POST 'http://git.rfed.io/api/v1/repos/migrate' -H 'accept: application/json' -H 'authorization: Basic Z2l0ZWE6UGEyMndvcmQ=' -H 'Content-Type: application/json' -d '{ "clone_addr": "https://github.com/clemenko/fleet", "repo_name": "fleet","repo_owner": "gitea"}' > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
   
   echo -e -n " - minio "
-#   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
-   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio.yml > /dev/null 2>&1
+   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
+   # kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio.yml > /dev/null 2>&1
   # https://github.com/minio/minio/blob/master/helm/minio/values.yaml
    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio_traefik.yml > /dev/null 2>&1
    echo -e "$GREEN""ok" "$NO_COLOR"
