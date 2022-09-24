@@ -19,7 +19,7 @@ block_volume=0
 user=root
 
 #image=ubuntu-22-04-x64
-image=rockylinux-8-x64
+image=rockylinux-9-x64
 
 # rancher / k8s
 prefix=rke # no rke k3s
