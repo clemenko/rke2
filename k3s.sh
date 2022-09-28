@@ -441,7 +441,7 @@ function demo () {
   # echo -e -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/ghost.yaml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
 
   echo -e -n " - gitea "
-    helm upgrade -i gitea gitea-charts/gitea --namespace git --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=1Gi --set postgresql.persistence.size=1Gi --set gitea.config.server.ROOT_URL=http://git.rfed.io --set gitea.config.server.DOMAIN=git.rfed.io > /dev/null 2>&1
+    helm upgrade -i gitea gitea-charts/gitea --namespace gitea --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=500Mi --set postgresql.persistence.size=500Mi --set gitea.config.server.ROOT_URL=http://git.rfed.io --set gitea.config.server.DOMAIN=git.rfed.io > /dev/null 2>&1
 
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitea_traefik.yaml > /dev/null 2>&1;
 
@@ -450,10 +450,10 @@ function demo () {
   echo -e "$GREEN""ok" "$NO_COLOR"
   
   echo -e -n " - minio "
-   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
+#   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
    # kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio.yml > /dev/null 2>&1
   # https://github.com/minio/minio/blob/master/helm/minio/values.yaml
-   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio_traefik.yml > /dev/null 2>&1
+#   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio_traefik.yml > /dev/null 2>&1
    echo -e "$GREEN""ok" "$NO_COLOR"
 
  # echo -e -n " - jenkins "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/jenkins_containerd.yml > /dev/null 2>&1
