@@ -11,7 +11,7 @@ The script is meant to simplify the building of a demo stack for play and profit
 - [Traefik](http://traefik.io) - Ingress
 - [Jenkins](http://jenkins.io) - CI/CD
 - [Gitea](https://gitea.io/en-us/) - Version Control
-~~- [Graylog](http://https://www.graylog.org) - Logging~~
+- ~~[Graylog](http://https://www.graylog.org) - Logging~~
 - [StackRox](http://stackrox.com) - Security / [NeuVector](https://github.com/neuvector/neuvector)
 - [KeyCloak](http://keycloak.org) - Authentication
 - [Harbor](http://goharbor.io) - Registry
