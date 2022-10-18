@@ -220,7 +220,7 @@ echo -e "$GREEN" "ok" "$NO_COLOR"
 ################################ rancher ##############################
 function rancher () {
 
-  if [ -z $(dolist) ]; then
+  if [ -z $(dolist | awk '{printf $3","}' | sed 's/,$//') ]; then
     echo -e "$BLUE" "Building cluster first." "$NO_COLOR"
     up && traefik && longhorn
   fi
