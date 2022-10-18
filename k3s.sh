@@ -587,6 +587,7 @@ case "$1" in
         kill) kill;;
         rox) rox;;
         neu) neu;;
+        dolist) dolist;;
         traefik) traefik;;
         keycloak) keycloak;;
         longhorn) longhorn;;
