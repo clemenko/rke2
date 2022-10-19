@@ -21,7 +21,7 @@ block_volume=0
 image=rockylinux-9-x64
 
 # rancher / k8s
-prefix=k3s # no rke k3s
+prefix=rke # no rke k3s
 k3s_channel=stable # latest
 rke2_channel=v1.24 #v1.21
 selinux=true # false
@@ -110,7 +110,7 @@ fi
 
 if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   echo -e -n " adding os packages"
-  pdsh -l root -w $host_list 'mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl start iscsid.service; systemctl enable iscsid.service; #yum update -y' > /dev/null 2>&1
+  pdsh -l root -w $host_list 'mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; #yum update -y' > /dev/null 2>&1
   echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
 
@@ -140,7 +140,6 @@ net.core.somaxconn=4096
 net.core.netdev_max_backlog=4096
 
 # 16MB per socket - which sounds like a lot,
-# but will virtually never consume that much.
 net.core.rmem_max=16777216
 net.core.wmem_max=16777216
 
@@ -292,8 +291,8 @@ EOF
 ################################ longhorn ##############################
 function longhorn () {
   echo -e -n  " - longhorn "
-  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
-#  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.2.4/deploy/longhorn.yaml > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.3.2/deploy/longhorn.yaml > /dev/null 2>&1
+#  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/master/deploy/longhorn.yaml > /dev/null 2>&1
 
   sleep 5
 
