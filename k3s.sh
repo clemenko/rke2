@@ -336,7 +336,7 @@ function neu () {
   echo -e -n  " - neuvector "
 
   # helm repo add neuvector https://neuvector.github.io/neuvector-helm/
-  
+
   helm upgrade -i neuvector --namespace neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock > /dev/null 2>&1
 
   kubectl apply -f ~/Dropbox/work/neuvector/neu_traefik.yaml > /dev/null 2>&1
@@ -349,7 +349,7 @@ function neu () {
 
   curl -sk -H "Content-Type: application/json" -H 'Token: '$TOKEN -X PATCH https://neuvector.$domain/user -d '{"domain_permissions":{},"server":"","email":"","role":"admin","username":"admin","default_password":true,"password_days_until_expire":-1,"global_permissions":[{"id":"config","read":true,"write":true},{"id":"nv_resource","read":true,"write":true},{"id":"rt_scan","read":true,"write":true},{"id":"reg_scan","read":true,"write":true},{"id":"ci_scan","read":false,"write":true},{"id":"cloud","read":true,"write":true},{"id":"rt_policy","read":true,"write":true},{"id":"admctrl","read":true,"write":true},{"id":"compliance","read":true,"write":true},{"id":"audit_events","read":true,"write":false},{"id":"security_events","read":true,"write":false},{"id":"events","read":true,"write":false},{"id":"authentication","read":true,"write":true},{"id":"authorization","read":true,"write":true},{"id":"vulnerability","read":true,"write":true}],"locale":"en","fullname":"admin","token":"'$TOKEN'","timeout":300,"modify_password":false,"password":"admin","new_password":"'$password'"}' > /dev/null 2>&1
 
-  TOKEN=$(curl -sk -H "Content-Type: application/json" https://neuvector.$domain/auth -d '{"username": "admin", "password": "'$password'"}' | jq  -r .token.token)
+  #TOKEN=$(curl -sk -H "Content-Type: application/json" https://neuvector.$domain/auth -d '{"username": "admin", "password": "'$password'"}' | jq  -r .token.token)
 
   # add license
   #curl -sk -X POST -H "Content-Type: application/json" -H 'Accept: application/json, text/plain, */*' -H 'Token: '$TOKEN https://neuvector.$domain/license/update -d '{"license_key":"'$(cat neuvector.lic)'"}' --compressed > /dev/null 2>&1
