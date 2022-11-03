@@ -100,7 +100,7 @@ systemctl restart rke2-agent"
 
 ## V-254558 - KubeAPI Insecure Port
 
-The Kubernetes API server must have the insecure port flag disabled.
+The Kubernetes API server must have the insecure port flag disabled. Deprecated in 1.10. Any version higher can ignore this control.
 
 Fix Text:
 
@@ -208,19 +208,13 @@ chown root:root ./*
 chmod 0750 ./*
 ls -l
 
-5. Fix permissions directory of /var/lib/rancher/rke2/data
-cd /var/lib/rancher/rke2/agent
-chown root:root data
-chmod 0750 data
-ls -l
-
-6. Fix permissions of files in /var/lib/rancher/rke2/data
+5. Fix permissions of files in /var/lib/rancher/rke2/data
 cd /var/lib/rancher/rke2/data
 chown root:root ./*
 chmod 0640 ./*
 ls -l
 
-7. Fix permissions in /var/lib/rancher/rke2/server
+6. Fix permissions in /var/lib/rancher/rke2/server
 cd /var/lib/rancher/rke2/server
 chown root:root ./*
 chmod 0700 cred
@@ -423,7 +417,6 @@ Fix Text:
 
 Upgrade RKE2 to the supported version. Institute and adhere to the policies and procedures to ensure that patches are consistently applied within the time allowed.
 
-
 ## tl:dr
 
 Server:
@@ -435,26 +428,39 @@ secrets-encryption: true
 write-kubeconfig-mode: 0640
 streaming-connection-idle-timeout: 5m
 kube-controller-manager-arg:
-- "bind-address=127.0.0.1"
-- "use-service-account-credentials=true"
-- "tls-min-version=VersionTLS12"
-- "tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+- bind-address=127.0.0.1
+- use-service-account-credentials=true
+- tls-min-version=VersionTLS12
+- tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
 kube-scheduler-arg:
-- "tls-min-version=VersionTLS12"
-- "tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
+- tls-min-version=VersionTLS12
+- tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
 kube-apiserver-arg:
-- "tls-min-version=VersionTLS12"
-- "tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384"
-- "authorization-mode=RBAC,Node"
-- "anonymous-auth=false"
-- "audit-policy-file=/etc/rancher/rke2/audit-policy.yaml"
-- "audit-log-mode=blocking-strict"
-- "audit-log-maxage=30"
-#- "insecure-port=0"
+- tls-min-version=VersionTLS12
+- tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+- authorization-mode=RBAC,Node
+- anonymous-auth=false
+- audit-policy-file=/etc/rancher/rke2/audit-policy.yaml
+- audit-log-mode=blocking-strict
+- audit-log-maxage=30
 kubelet-arg:
-- "protect-kernel-defaults=true"
-- "read-only-port=0"
-- "authorization-mode=Webhook"
+- protect-kernel-defaults=true
+- read-only-port=0
+- authorization-mode=Webhook
+```
+
+Now run:
+
+```bash
+chmod 0640 /etc/rancher/rke2/*
+chmod 0700 /var/lib/rancher/rke2/agent/pod-manifests
+chmod 0700 /var/lib/rancher/rke2/agent/etc
+find /var/lib/rancher/rke2/agent/ -maxdepth 1 -type f -name "*.kubeconfig" -exec chmod 0640 {} \;
+find /var/lib/rancher/rke2/agent/ -maxdepth 1 -type f -name "*.crt" -exec chmod 0600 {} \;
+find /var/lib/rancher/rke2/agent/ -maxdepth 1 -type f -name "*.key" -exec chmod 0600 {} \;
+chmod 0640 /var/lib/rancher/rke2/data
+chmod 0750 /var/lib/rancher/rke2/server/manifests /var/lib/rancher/rke2/server/logs
+chmod 0600 /var/lib/rancher/rke2/server/token
 ```
 
 Agent:
@@ -465,9 +471,20 @@ server: https://$RKE_SERVER:9345
 write-kubeconfig-mode: 0640
 profile: cis-1.6
 kube-apiserver-arg:
-- "authorization-mode=RBAC,Node"
+- authorization-mode=RBAC,Node
 kubelet-arg:
-- "protect-kernel-defaults=true"
-- "read-only-port=0"
-- "authorization-mode=Webhook"
+- protect-kernel-defaults=true
+- read-only-port=0
+- authorization-mode=Webhook
+```
+
+Now run:
+
+```bash
+chmod 0640 /etc/rancher/rke2/*
+chmod 0700 /var/lib/rancher/rke2/agent/pod-manifests
+chmod 0700 /var/lib/rancher/rke2/agent/etc
+find /var/lib/rancher/rke2/agent/ -maxdepth 1 -type f -name "*.kubeconfig" -exec chmod 0640 {} \;
+find /var/lib/rancher/rke2/agent/ -maxdepth 1 -type f -name "*.crt" -exec chmod 0600 {} \;
+find /var/lib/rancher/rke2/agent/ -maxdepth 1 -type f -name "*.key" -exec chmod 0600 {} \;
 ```
