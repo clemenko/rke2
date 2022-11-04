@@ -109,7 +109,7 @@ fi
 
 if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   echo -e -n " adding os packages"
-  pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; #yum update -y' > /dev/null 2>&1
+  pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl enable iscsid; systemctl start iscsid; #yum update -y' > /dev/null 2>&1
   echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
 
@@ -220,13 +220,7 @@ function rancher () {
     up && traefik && longhorn
   fi
 
-  echo -e " deploying rancher server "
-
-  echo -e -n " - creating namespace and adding CAs"
-  kubectl create ns cattle-system > /dev/null 2>&1
-  # add additional CAs
-  # from mkcert
-  #kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=rootCA.pem > /dev/null 2>&1
+  echo -e " deploying rancher"
 
   echo -e -n " - helming "
   helm repo add rancher-latest https://releases.rancher.com/server-charts/latest > /dev/null 2>&1
@@ -236,13 +230,14 @@ function rancher () {
   helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true > /dev/null 2>&1 #--version v1.6.1
 
   # custom TLS certs
+  # kubectl create ns cattle-system 
   # kubectl -n cattle-system create secret tls tls-rancher-ingress --cert=tls.crt --key=tls.key
   # kubectl -n cattle-system create secret generic tls-ca --from-file=cacerts.pem
   # kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=cacerts.pem
 
   # helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set additionalTrustedCAs=true --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true
  
-  helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath > /dev/null 2>&1
+  helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath > /dev/null 2>&1
   # --version 2.6.4-rc4 --devel
 
   echo -e "$GREEN" "ok" "$NO_COLOR"
@@ -418,7 +413,7 @@ function rox () {
 function fleet () {
   # fix the local cluster in the group issue
   echo -e -n " deploying with fleet:"
-  kubectl patch ClusterGroup -n fleet-local default --type=json -p='[{"op": "remove", "path": "/spec/selector/matchLabels/name"}]'
+  kubectl patch ClusterGroup -n fleet-local default --type=json -p='[{"op": "remove", "path": "/spec/selector/matchLabels/name"}]' > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
 }
