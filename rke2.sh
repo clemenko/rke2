@@ -284,8 +284,7 @@ function longhorn () {
   echo -e -n  " - longhorn "
 #  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.3.2/deploy/longhorn.yaml > /dev/null 2>&1
 
-#  helm repo add longhorn https://charts.longhorn.io
-#  helm repo update
+#  helm repo add longhorn https://charts.longhorn.io && helm repo update
   helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain > /dev/null 2>&1
 
   sleep 5
@@ -331,7 +330,7 @@ function neu () {
 
   # helm repo add neuvector https://neuvector.github.io/neuvector-helm/
 
-  helm upgrade -i neuvector --namespace neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock > /dev/null 2>&1
+  helm upgrade -i neuvector --namespace neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock  --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.rfed.io --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi > /dev/null 2>&1
 
   kubectl apply -f ~/Dropbox/work/neuvector/neu_traefik.yaml > /dev/null 2>&1
 
@@ -413,7 +412,7 @@ function rox () {
 function fleet () {
   # fix the local cluster in the group issue
   echo -e -n " deploying with fleet:"
-  kubectl patch ClusterGroup -n fleet-local default --type=json -p='[{"op": "remove", "path": "/spec/selector/matchLabels/name"}]' > /dev/null 2>&1
+  kubectl patch clusters.fleet.cattle.io -n fleet-local local --type=merge -p '{"metadata": {"labels":{"name":"local"}}}' > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
 }
