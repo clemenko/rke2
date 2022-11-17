@@ -30,4 +30,5 @@ https://docs.ranchermanager.rancher.io/pages-for-subheaders/air-gapped-helm-cli-
 
   helm install rancher /opt/rancher/helm/rancher-2.7.0.tgz --namespace cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set useBundledSystemChart=true --set systemDefaultRegistry=localhost:5000
 
-  
+--no-hooks
+
