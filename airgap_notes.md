@@ -29,18 +29,16 @@ helm install longhorn /opt/rancher/helm/longhorn-1.3.2.tgz --namespace longhorn-
 
 ### Cert-Manager
 
+```bash
 helm install cert-manager /opt/rancher/helm/cert-manager-v1.10.0.tgz --namespace cert-manager --create-namespace --set installCRDs=true --set image.repository=localhost:5000/cert-manager-controller --set webhook.image.repository=localhost:5000/cert-manager-webhook --set cainjector.image.repository=localhost:5000/cert-manager-cainjector --set startupapicheck.image.repository=localhost:5000/cert-manager-ctl
-
+```
 
 ### Rancher
 
 docs : https://docs.ranchermanager.rancher.io/pages-for-subheaders/air-gapped-helm-cli-install
 
-
 ```bash
-helm install rancher /opt/rancher/helm/rancher-2.7.0.tgz --namespace cattle-system --create-namespace --set hostname=rancher.awesome.sauce --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set useBundledSystemChart=true --set rancherImage=localhost:5000/rancher/rancher --set systemDefaultRegistry=localhost:5000 
+helm install rancher /opt/rancher/helm/rancher-2.7.0.tgz --namespace cattle-system --create-namespace --set hostname=rancher.awesome.sauce --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set useBundledSystemChart=true --set rancherImage=localhost:5000/rancher/rancher --set systemDefaultRegistry=localhost:5000 --set certmanager.version=v1.10.0
 
 #  --no-hooks --set rancherImageTag=v2.7.0
 ```
-
-
