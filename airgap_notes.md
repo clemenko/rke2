@@ -42,3 +42,10 @@ helm install rancher /opt/rancher/helm/rancher-2.7.0.tgz --namespace cattle-syst
 
 #  --no-hooks --set rancherImageTag=v2.7.0
 ```
+
+
+### bonus
+
+```bash
+export CRI_CONFIG_FILE=/var/lib/rancher/rke2/agent/etc/crictl.yaml KUBECONFIG=/etc/rancher/rke2/rke2.yaml PATH=$PATH:/var/lib/rancher/rke2/bin
+```
