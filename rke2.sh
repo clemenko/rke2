@@ -23,7 +23,7 @@ image=rockylinux-9-x64
 # rancher / k8s
 prefix=rke # no rke k3s
 k3s_channel=stable # latest
-rke2_channel=v1.24 #latest
+rke2_channel=v1.24.7 #latest
 
 # ingress nginx or traefik
 ingress=traefik # traefik
@@ -109,7 +109,7 @@ fi
 
 if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   echo -e -n " adding os packages"
-  pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl enable iscsid; systemctl start iscsid; #yum update -y' > /dev/null 2>&1
+  pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl enable iscsid; systemctl start iscsid; yum update -y selinux*; #yum update -y' > /dev/null 2>&1
   echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
 
@@ -411,7 +411,7 @@ function rox () {
 ############################# fleet ################################
 function fleet () {
   # fix the local cluster in the group issue
-  echo -e -n " deploying with fleet:"
+  echo -e -n " fleet-ing "
   kubectl patch clusters.fleet.cattle.io -n fleet-local local --type=merge -p '{"metadata": {"labels":{"name":"local"}}}' > /dev/null 2>&1
   kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
@@ -419,7 +419,7 @@ function fleet () {
 
 ############################# demo ################################
 function demo () {
-  echo -e " deploying:"
+  echo -e " demo-ing "
 
   # echo -e -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
 
