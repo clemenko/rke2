@@ -21,7 +21,7 @@ block_volume=0
 image=rockylinux-9-x64
 
 # rancher / k8s
-prefix=rke # no rke k3s
+prefix=rke- # no rke k3s
 k3s_channel=stable # latest
 rke2_channel=v1.24.7 #latest
 
@@ -49,7 +49,7 @@ command -v k3sup >/dev/null 2>&1 || { echo -e "$RED" " ** K3sup was not found. P
 command -v kubectl >/dev/null 2>&1 || { echo -e "$RED" " ** Kubectl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
 
 #### doctl_list ####
-function dolist () { doctl compute droplet list --no-header|grep $prefix |sort -k 2; }
+function dolist () { harvester vm |grep -v NAME | awk '{print $1"  "$2"  "$6"  "$4"  "$5}'; }
 
 server=$(dolist | sed -n 1p | awk '{print $3}')
 
@@ -68,7 +68,9 @@ for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 
 #build VMS
 echo -e -n " building vms -$build_list"
-doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --wait > /dev/null 2>&1
+harvester vm create --template rocky9 --count $num rke > /dev/null 2>&1
+until [ $(dolist | grep "192.168" | wc -l) = $num ]; do echo -e -n "." ; sleep 2; done
+
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
 # add block storage
@@ -94,8 +96,8 @@ worker_list=$(dolist | sed 1d | awk '{printf $3","}' | sed 's/,$//')
 
 #update DNS
 echo -e -n " updating dns"
-doctl compute domain records create $domain --record-type A --record-name $prefix --record-ttl 300 --record-data $server > /dev/null 2>&1
-doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix.$domain. > /dev/null 2>&1
+doctl compute domain records create $domain --record-type A --record-name $prefix"1" --record-ttl 300 --record-data $server > /dev/null 2>&1
+doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix"1".$domain. > /dev/null 2>&1
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
 sleep 10
@@ -168,7 +170,7 @@ sysctl -p' > /dev/null 2>&1
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
 #or deploy k3s
-if [ "$prefix" != k3s ] && [ "$prefix" != rke ]; then exit; fi
+if [ "$prefix" != k3s ] && [ "$prefix" != rke- ]; then exit; fi
 
 if [ "$prefix" = k3s ]; then
   echo -e -n " deploying k3s"
@@ -185,7 +187,7 @@ fi
 
 #or deploy rke2
 # https://docs.rke2.io/install/methods/#enterprise-linux-8
-if [ "$prefix" = rke ]; then
+if [ "$prefix" = rke- ]; then
   echo -e -n " deploying rke2 "
   if [ "$ingress" = nginx ]; then ingress_file="#disable: rke2-ingress-nginx"; else ingress_file="disable: rke2-ingress-nginx"; fi
 
@@ -238,7 +240,7 @@ function rancher () {
   # helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set additionalTrustedCAs=true --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true
  
   helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath > /dev/null 2>&1
-  # --version 2.7.0-rc1 --devel
+  # --version 2.6.4-rc4 --devel
 
   echo -e "$GREEN" "ok" "$NO_COLOR"
 
@@ -310,7 +312,7 @@ function traefik () {
   #helm repo add traefik https://helm.traefik.io/traefik
 
   if [ "$ingress" = traefik ]; then
-    if [ "$prefix" = rke ]; then 
+    if [ "$prefix" = rke- ]; then 
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_rke.yml > /dev/null 2>&1
         # helm upgrade -i traefik traefik/traefik --namespace traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
     elif [ "$prefix" = k3s ]; then
@@ -540,7 +542,8 @@ function kill () {
 
 if [ ! -z $(dolist | awk '{printf $3","}' | sed 's/,$//') ]; then
   echo -e -n " killing it all "
-  for i in $(dolist | awk '{print $2}'); do doctl compute droplet delete --force $i; done
+  #for i in $(dolist | awk '{print $2}'); do doctl compute droplet delete --force $i; done
+  harvester vm delete $(harvester vm |grep -v NAME | awk '{printf $2" "}') > /dev/null 2>&1
   for i in $(dolist | awk '{print $3}'); do ssh-keygen -q -R $i > /dev/null 2>&1; done
   for i in $(doctl compute domain records list $domain|grep $prefix |awk '{print $1}'); do doctl compute domain records delete -f $domain $i; done
   until [ $(dolist | wc -l | sed 's/ //g') == 0 ]; do echo -e -n "."; sleep 2; done
