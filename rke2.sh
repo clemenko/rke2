@@ -23,7 +23,7 @@ image=rockylinux-9-x64
 # rancher / k8s
 prefix=rke # no rke k3s
 k3s_channel=stable # latest
-rke2_channel=v1.24.7 #latest
+rke2_channel=v1.24.8 #latest
 
 # ingress nginx or traefik
 ingress=traefik # traefik
@@ -433,7 +433,8 @@ function demo () {
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitea_traefik.yaml > /dev/null 2>&1;
 
     # mirror github
-    curl -X POST 'http://git.rfed.io/api/v1/repos/migrate' -H 'accept: application/json' -H 'authorization: Basic Z2l0ZWE6UGEyMndvcmQ=' -H 'Content-Type: application/json' -d '{ "clone_addr": "https://github.com/clemenko/fleet", "repo_name": "fleet","repo_owner": "gitea"}' > /dev/null 2>&1
+    until [ $(curl -s http://git.$domain/explore/repos| grep "<title>" | wc -l) = 1 ]; do sleep 2; echo -n "."; done
+    curl -X POST http://git.$domain/api/v1/repos/migrate -H 'accept: application/json' -H 'authorization: Basic Z2l0ZWE6UGEyMndvcmQ=' -H 'Content-Type: application/json' -d '{ "clone_addr": "https://github.com/clemenko/fleet", "repo_name": "fleet","repo_owner": "gitea"}' > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
   
   echo -e -n " - minio "

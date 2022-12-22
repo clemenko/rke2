@@ -14,7 +14,7 @@ password=Pa22word
 zone=nyc1
 size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
-domain=rfed.io
+domain=rfed.site
 block_volume=0
 
 #image=ubuntu-22-04-x64
@@ -23,7 +23,7 @@ image=rockylinux-9-x64
 # rancher / k8s
 prefix=rke- # no rke k3s
 k3s_channel=stable # latest
-rke2_channel=v1.24.7 #latest
+rke2_channel=v1.24.8 #latest
 
 # ingress nginx or traefik
 ingress=traefik # traefik
@@ -245,7 +245,7 @@ function rancher () {
   echo -e "$GREEN" "ok" "$NO_COLOR"
 
   #traefik
-  if [ "$ingress" = traefik ]; then kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher_traefik.yml  > /dev/null 2>&1; fi 
+  if [ "$ingress" = traefik ]; then curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher_traefik.yml | sed 's/rfed.io/rfed.site/g' | kubectl apply -f - > /dev/null 2>&1; fi 
 
   # wait for rancher
   echo -e -n " - waiting for rancher "
@@ -313,13 +313,15 @@ function traefik () {
 
   if [ "$ingress" = traefik ]; then
     if [ "$prefix" = rke- ]; then 
+
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_rke.yml > /dev/null 2>&1
         # helm upgrade -i traefik traefik/traefik --namespace traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
     elif [ "$prefix" = k3s ]; then
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
         # helm upgrade -i traefik traefik/traefik --namespace traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
     fi
-    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
+    curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml | sed 's/rfed.io/rfed.site/g' | kubectl apply -f -   > /dev/null 2>&1
+    #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
     echo -e "$GREEN" "ok" "$NO_COLOR"
   else 
    echo -e "$RED" "nginx installed" "$NO_COLOR"
@@ -332,7 +334,7 @@ function neu () {
 
   # helm repo add neuvector https://neuvector.github.io/neuvector-helm/
 
-  helm upgrade -i neuvector --namespace neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock  --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.rfed.io --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi > /dev/null 2>&1
+  helm upgrade -i neuvector --namespace neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock  --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi > /dev/null 2>&1
 
   kubectl apply -f ~/Dropbox/work/neuvector/neu_traefik.yaml > /dev/null 2>&1
 
@@ -430,12 +432,13 @@ function demo () {
   # echo -e -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/ghost.yaml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
 
   echo -e -n " - gitea "
-    helm upgrade -i gitea gitea-charts/gitea --namespace gitea --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=500Mi --set postgresql.persistence.size=500Mi --set gitea.config.server.ROOT_URL=http://git.rfed.io --set gitea.config.server.DOMAIN=git.rfed.io > /dev/null 2>&1
+    helm upgrade -i gitea gitea-charts/gitea --namespace gitea --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=500Mi --set postgresql.persistence.size=500Mi --set gitea.config.server.ROOT_URL=http://git.$domain --set gitea.config.server.DOMAIN=git.$domain > /dev/null 2>&1
 
-    kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitea_traefik.yaml > /dev/null 2>&1;
+    curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitea_traefik.yaml | sed 's/rfed.io/rfed.site/g' | kubectl apply -f - > /dev/null 2>&1;
 
     # mirror github
-    curl -X POST 'http://git.rfed.io/api/v1/repos/migrate' -H 'accept: application/json' -H 'authorization: Basic Z2l0ZWE6UGEyMndvcmQ=' -H 'Content-Type: application/json' -d '{ "clone_addr": "https://github.com/clemenko/fleet", "repo_name": "fleet","repo_owner": "gitea"}' > /dev/null 2>&1
+    until [ $(curl -s http://git.$domain/explore/repos| grep "<title>" | wc -l) = 1 ]; do sleep 2; echo -n "."; done
+    curl -X POST http://git.$domain/api/v1/repos/migrate -H 'accept: application/json' -H 'authorization: Basic Z2l0ZWE6UGEyMndvcmQ=' -H 'Content-Type: application/json' -d '{ "clone_addr": "https://github.com/clemenko/fleet", "repo_name": "fleet","repo_owner": "gitea"}' > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
   
   echo -e -n " - minio "
