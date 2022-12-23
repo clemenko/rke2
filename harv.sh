@@ -23,7 +23,7 @@ image=rockylinux-9-x64
 # rancher / k8s
 prefix=rke- # no rke k3s
 k3s_channel=stable # latest
-rke2_channel=v1.24.8 #latest
+rke2_channel=v1.24 #latest
 
 # ingress nginx or traefik
 ingress=traefik # traefik
@@ -67,7 +67,7 @@ fi
 for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 
 #build VMS
-echo -e -n " building vms -$build_list"
+echo -e -n " building vms -$build_list "
 harvester vm create --template rocky9 --count $num rke > /dev/null 2>&1
 until [ $(dolist | grep "192.168" | wc -l) = $num ]; do echo -e -n "." ; sleep 2; done
 
