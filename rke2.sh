@@ -285,7 +285,7 @@ function longhorn () {
 #  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.3.2/deploy/longhorn.yaml > /dev/null 2>&1
 
 #  helm repo add longhorn https://charts.longhorn.io && helm repo update
-  helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain > /dev/null 2>&1
+  helm upgrade -i longhorn  longhorn/longhorn --namespace longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain > /dev/null 2>&1
 
   sleep 5
 
@@ -352,61 +352,34 @@ function neu () {
 
 ################################ rox ##############################
 function rox () {
-# ensure no central-bundle is not present
-  if [ -d central-bundle ]; then
-    echo -e "$RED" "Warning - cental-bundle already detected..." "$NO_COLOR"
-    exit
-  fi
-
-# check for credentials for help.stackrox.com 
-#  if [ "$REGISTRY_USERNAME" = "" ] || [ "$REGISTRY_PASSWORD" = "" ]; then echo -e "Please setup a ENVs for REGISTRY_USERNAME and REGISTRY_PASSWORD..."; exit; fi
-
-# get latest roxctl
-# for MacOS you may need to remove the quarentine for it
-# xattr -d com.apple.quarantine /usr/local/bin/roxctl
-  echo -e -n " getting latest roxctl "
-    curl -#L https://mirror.openshift.com/pub/rhacs/assets/latest/bin/Darwin/roxctl -o /usr/local/bin/roxctl > /dev/null 2>&1
-    chmod 755 /usr/local/bin/roxctl
-  echo -e "$GREEN" "ok" "$NO_COLOR"
+# helm repo add rhacs https://mirror.openshift.com/pub/rhacs/charts/
+# helm repo update
 
   echo -e " deploying :"
-  echo -e -n  "  - stackrox "  
-# generate stackrox yaml
-#  roxctl central generate k8s pvc  --storage-class longhorn --size 5 --enable-telemetry=false --lb-type np --password $password > /dev/null 2>&1
-  roxctl central generate k8s pvc --storage-class longhorn --size 10 --enable-telemetry=false --lb-type np --password $password  --main-image quay.io/stackrox-io/main:$rox_version --scanner-db-image quay.io/stackrox-io/scanner-db:$rox_version --scanner-image quay.io/stackrox-io/scanner:$rox_version > /dev/null 2>&1
+  echo -e -n  "  - stackrox - central "  
+  helm upgrade -i -n stackrox --create-namespace stackrox-central-services rhacs/central-services --set imagePullSecrets.username=AndyClemenko --set imagePullSecrets.password=$REGISTRY_PASSWORD --set central.exposure.loadBalancer.enabled=true --set central.disableTelemetry=true --set central.persistence.persistentVolumeClaim.size=5Gi --set central.adminPassword.value=Pa22word > /dev/null 2>&1
 
-# setup and install central
-  ./central-bundle/central/scripts/setup.sh > /dev/null 2>&1
-  kubectl apply -R -f central-bundle/central > /dev/null 2>&1
-
-# deploy traefik CRD IngressRoute
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml > /dev/null 2>&1
+  curl -s kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml | sed "s/rfed.io/$domain/g" | kubectl apply -f - > /dev/null 2>&1
   
- # get the server and port from kubectl - assuming nodeport
-  server=$(kubectl get nodes -o json | jq -r '.items[0].status.addresses[] | select( .type=="InternalIP" ) | .address ')
-  rox_port=$(kubectl -n stackrox get svc central-loadbalancer |grep Node|awk '{print $5}'|sed -e 's/443://g' -e 's#/TCP##g')
-  
-# wait for central to be up
-  until [ $(curl -kIs --max-time 5 --connect-timeout 5 https://$server:$rox_port|head -n1|wc -l) = 1 ]; do echo -e -n "." ; sleep 2; done
-  
-# setup and install scanner
-  ./central-bundle/scanner/scripts/setup.sh > /dev/null 2>&1
-  kubectl apply -R -f central-bundle/scanner/ > /dev/null 2>&1
-
-# ask central for a sensor bundle
-#  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password > /dev/null 2>&1
-  roxctl sensor generate k8s -e $server:$rox_port --name k3s --central central.stackrox:443 --insecure-skip-tls-verify --collection-method ebpf --admission-controller-listen-on-updates --admission-controller-listen-on-creates -p $password --main-image-repository quay.io/stackrox-io/main:$rox_version --collector-image-repository quay.io/stackrox-io/collector  > /dev/null 2>&1
-
-# install sensors
-  ./sensor-k3s/sensor.sh > /dev/null 2>&1
-
+ # wait for central to be up
+  until [ $(curl -ks --max-time 5 --connect-timeout 5 https://stackrox.$domain/main/system-health|grep JavaScript|wc -l) = 1 ]; do echo -e -n "." ; sleep 2; done
+  sleep 5
   echo -e "$GREEN" "ok" "$NO_COLOR"
 
   echo -e -n "  - creating api token "
-  sleep 5
-  curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token > ROX_API_TOKEN
+  export ROX_API_TOKEN=$(curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token)
+  echo -e "$GREEN""ok" "$NO_COLOR"
+
+  echo -e -n  "  - stackrox - collector " 
+  # get init bundle
+  curl -ks https://stackrox.$domain/v1/cluster-init/init-bundles -H 'accept: application/json, text/plain, */*' -H "authorization: Bearer $ROX_API_TOKEN" -H 'content-type: application/json' -d '{"name":"rancher"}' |jq -r .helmValuesBundle | base64 -D > cluster_init_bundle.yaml
+
+  helm upgrade -i -n stackrox --create-namespace stackrox-secured-cluster-services rhacs/secured-cluster-services -f cluster_init_bundle.yaml --set clusterName=rancher --set centralEndpoint=central.stackrox:443 --set scanner.disable=true  > /dev/null 2>&1
+
+  rm -rf cluster_init_bundle.yaml
   echo -e "$GREEN""ok" "$NO_COLOR"
 }
+
 
 ############################# fleet ################################
 function fleet () {

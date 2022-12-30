@@ -287,7 +287,7 @@ function longhorn () {
 #  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.3.2/deploy/longhorn.yaml > /dev/null 2>&1
 
 #  helm repo add longhorn https://charts.longhorn.io && helm repo update
-  helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain > /dev/null 2>&1
+  helm upgrade -i longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain > /dev/null 2>&1
 
   sleep 5
 
@@ -356,7 +356,6 @@ function neu () {
 
 ################################ rox ##############################
 function rox () {
-
 # helm repo add rhacs https://mirror.openshift.com/pub/rhacs/charts/
 # helm repo update
 
