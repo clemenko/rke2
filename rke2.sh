@@ -332,7 +332,7 @@ function neu () {
 
   helm upgrade -i neuvector --namespace neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock  --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.rfed.io --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi > /dev/null 2>&1
 
-  kubectl apply -f ~/Dropbox/work/neuvector/neu_traefik.yaml > /dev/null 2>&1
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/neuvector_traefik.yml > /dev/null 2>&1
 
   until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -e -n .; sleep 1; done
 
