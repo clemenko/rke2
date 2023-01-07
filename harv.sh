@@ -203,6 +203,7 @@ if [ "$prefix" = rke- ]; then
   pdsh -l root -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' INSTALL_RKE2_TYPE=agent sh - && systemctl enable rke2-agent.service && mkdir -p /etc/rancher/rke2/ && echo -e "server: https://"'$server'":9345\ntoken: "'$token'"\nwrite-kubeconfig-mode: 0640\n#profile: cis-1.6\nkube-apiserver-arg:\n- authorization-mode=RBAC,Node\nkubelet-arg:\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook" > /etc/rancher/rke2/config.yaml && systemctl start rke2-agent.service' > /dev/null 2>&1
 
   rsync -avP root@$server:/etc/rancher/rke2/rke2.yaml ~/.kube/config > /dev/null 2>&1
+  chmod 0600 ~/.kube/config
   sed -i'' -e "s/127.0.0.1/$server/g" ~/.kube/config 
 
   echo -e "$GREEN" "ok" "$NO_COLOR"
@@ -334,7 +335,7 @@ function neu () {
 
   # helm repo add neuvector https://neuvector.github.io/neuvector-helm/
 
-  helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock  --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi > /dev/null 2>&1
+  helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock  --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain --set manager.svc.type=ClusterIP --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi > /dev/null 2>&1
 
   curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/neuvector_traefik.yml | sed "s/rfed.io/$domain/g" | kubectl apply -f - > /dev/null 2>&1
 
