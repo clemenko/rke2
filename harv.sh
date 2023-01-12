@@ -334,12 +334,19 @@ function neu () {
   echo -e -n  " - neuvector "
 
   # helm repo add neuvector https://neuvector.github.io/neuvector-helm/
+  export CAROOT=certs/
+  mkdir -p certs/
+  mkcert -client -cert-file certs/cert.pem -key-file certs/cert.key NeuVector neuvector.nv.local > /dev/null 2>&1
+  mv certs/rootCA.pem certs/ca.cert
 
-  helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock  --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain --set manager.svc.type=ClusterIP --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi > /dev/null 2>&1
+  kubectl create ns neuvector > /dev/null 2>&1
+  kubectl create secret generic internal-cert -n neuvector --from-file=certs/cert.key --from-file=certs/cert.pem --from-file=certs/ca.cert > /dev/null 2>&1
+
+  helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain --set manager.svc.type=ClusterIP --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set controller.internal.certificate.secret=internal-cert --set cve.scanner.internal.certificate.secret=internal-cert --set enforcer.internal.certificate.secret=internal-cert > /dev/null 2>&1
 
   curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/neuvector_traefik.yml | sed "s/rfed.io/$domain/g" | kubectl apply -f - > /dev/null 2>&1
 
-  until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -e -n .; sleep 1; done
+  until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -e -n .; sleep 2; done
 
   TOKEN=$(curl -sk -H "Content-Type: application/json" https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}' | jq  -r .token.token)
 
@@ -525,7 +532,7 @@ if [ ! -z $(dolist | awk '{printf $3","}' | sed 's/,$//') ]; then
   until [ $(dolist | wc -l | sed 's/ //g') == 0 ]; do echo -e -n "."; sleep 2; done
   for i in $(doctl compute volume list --no-header |awk '{print $1}'); do doctl compute volume delete -f $i; done
 
-  rm -rf *.txt *.log *.zip *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN 
+  rm -rf *.txt *.log *.zip *.pub env.* certs backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN 
 
 else
   echo -e -n " no cluster found "
