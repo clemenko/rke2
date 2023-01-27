@@ -15,7 +15,6 @@ zone=nyc1
 size=s-4vcpu-8gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=rfed.site
-block_volume=0
 
 #image=ubuntu-22-04-x64
 image=rockylinux-9-x64
@@ -72,15 +71,6 @@ harvester vm create --template rocky9 --count $num rke > /dev/null 2>&1
 until [ $(dolist | grep "192.168" | wc -l) = $num ]; do echo -e -n "." ; sleep 2; done
 
 echo -e "$GREEN" "ok" "$NO_COLOR"
-
-# add block storage
-if [ "$block_volume" -gt "0" ]; then 
-  echo -e -n " adding block storage "
-    for i in $(dolist | awk '{print $2}'); do 
-      doctl compute volume-action attach $(doctl compute volume create $i --region $zone --size $block_volume"GiB" |grep $i| awk '{print $1}') $(doctl compute droplet list | grep $i |awk '{print $1}') > /dev/null 2>&1
-    done
-  echo -e "$GREEN" "ok" "$NO_COLOR"
-fi
 
 #check for SSH
 echo -e -n " checking for ssh "
