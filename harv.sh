@@ -9,7 +9,7 @@
 # edit varsw
 ###################################
 set -e
-num=3
+num=6
 password=Pa22word
 zone=nyc1
 size=s-4vcpu-8gb
@@ -25,7 +25,7 @@ k3s_channel=stable # latest
 rke2_channel=v1.24 #latest
 
 # ingress nginx or traefik
-ingress=traefik # traefik
+ingress=nginx # traefik
 
 # stackrox automation
 export REGISTRY_USERNAME=AndyClemenko
