@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 
+<<<<<<< HEAD
 # https://github.com/clemenko/k3s/blob/master/k3s.sh
 # this script assumes digitalocean is setup with DNS.
 # you need doctl, kubectl, uuid, jq, k3sup, pdsh and curl installed.
+=======
+# this script assumes you have harvester setup
+# you need harvester, kubectl, uuid, jq, k3sup, pdsh and curl installed.
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 # clemenko@gmail.com 
 
 ###################################
 # edit varsw
 ###################################
 set -e
+<<<<<<< HEAD
 num=3
 password=Pa22word
 zone=nyc1
@@ -24,6 +30,17 @@ image=rockylinux-9-x64
 prefix=rke- # no rke k3s
 k3s_channel=stable # latest
 rke2_channel=v1.24.7 #latest
+=======
+num=6
+password=Pa22word
+domain=rfed.site
+
+template=rocky9
+
+# rancher / k8s
+prefix=rke- # no rke k3s
+rke2_channel=v1.24 #latest
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 
 # ingress nginx or traefik
 ingress=traefik # traefik
@@ -41,6 +58,7 @@ export NO_COLOR='\x1b[0m'
 export PDSH_RCMD_TYPE=ssh
 
 #better error checking
+<<<<<<< HEAD
 command -v doctl >/dev/null 2>&1 || { echo -e "$RED" " ** Doctl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
 command -v curl >/dev/null 2>&1 || { echo -e "$RED" " ** Curl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo -e "$RED" " ** Jq was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
@@ -52,6 +70,17 @@ command -v kubectl >/dev/null 2>&1 || { echo -e "$RED" " ** Kubectl was not foun
 function dolist () { harvester vm |grep -v NAME | awk '{print $1"  "$2"  "$6"  "$4"  "$5}'; }
 
 server=$(dolist | sed -n 1p | awk '{print $3}')
+=======
+command -v curl >/dev/null 2>&1 || { echo -e "$RED" " ** Curl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo -e "$RED" " ** Jq was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
+command -v pdsh >/dev/null 2>&1 || { echo -e "$RED" " ** Pdsh was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
+command -v kubectl >/dev/null 2>&1 || { echo -e "$RED" " ** Kubectl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
+
+#### doctl_list ####
+function dolist () { harvester vm |grep -v NAME | grep Run | grep $prefix| awk '{print $1"  "$2"  "$6"  "$4"  "$5}'; }
+
+node1=$(dolist | sed -n 1p | awk '{print $3}')
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 
 ################################# up ################################
 function up () {
@@ -67,12 +96,17 @@ fi
 for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 
 #build VMS
+<<<<<<< HEAD
 echo -e -n " building vms -$build_list"
+=======
+echo -e -n " building vms -$build_list "
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 harvester vm create --template rocky9 --count $num rke > /dev/null 2>&1
 until [ $(dolist | grep "192.168" | wc -l) = $num ]; do echo -e -n "." ; sleep 2; done
 
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
+<<<<<<< HEAD
 # add block storage
 if [ "$block_volume" -gt "0" ]; then 
   echo -e -n " adding block storage "
@@ -82,6 +116,8 @@ if [ "$block_volume" -gt "0" ]; then
   echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
 
+=======
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 #check for SSH
 echo -e -n " checking for ssh "
 for ext in $(dolist | awk '{print $3}'); do
@@ -91,6 +127,7 @@ echo -e "$GREEN" "ok" "$NO_COLOR"
 
 #get ips
 host_list=$(dolist | awk '{printf $3","}' | sed 's/,$//')
+<<<<<<< HEAD
 server=$(dolist | sed -n 1p | awk '{print $3}')
 worker_list=$(dolist | sed 1d | awk '{printf $3","}' | sed 's/,$//')
 
@@ -103,10 +140,25 @@ doctl compute domain records create $domain --record-type CNAME --record-name "*
 doctl compute domain records create $domain --record-type A --record-name $prefix --record-ttl 300 --record-data $server > /dev/null 2>&1
 doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix.$domain. > /dev/null 2>&1
 >>>>>>> 0d944d5 (added harvester version)
+=======
+node1=$(dolist | sed -n 1p | awk '{print $3}')
+node2=$(dolist | sed -n 2p | awk '{print $3}')
+node3=$(dolist | sed -n 3p | awk '{print $3}')
+worker_list=$(dolist | sed '1,3d'  | awk '{printf $3","}' | sed -e 's/,$//')
+
+#update DNS
+echo -e -n " updating dns"
+doctl compute domain records create $domain --record-type A --record-name $prefix"1" --record-ttl 150 --record-data $node1 > /dev/null 2>&1
+doctl compute domain records create $domain --record-type A --record-name rke --record-ttl 150 --record-data $node1 > /dev/null 2>&1
+doctl compute domain records create $domain --record-type A --record-name rke --record-ttl 150 --record-data $node2 > /dev/null 2>&1
+doctl compute domain records create $domain --record-type A --record-name rke --record-ttl 150 --record-data $node3 > /dev/null 2>&1
+doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data rke.$domain. > /dev/null 2>&1
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
 sleep 10
 
+<<<<<<< HEAD
 #host modifications
 if [[ "$image" = *"ubuntu"* ]]; then
   echo -e -n " adding os packages"
@@ -119,6 +171,11 @@ if [[ "$image" = *"centos"* || "$image" = *"rocky"* ]]; then
   pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl enable iscsid; systemctl start iscsid; yum update -y selinux*; #yum update -y' > /dev/null 2>&1
   echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
+=======
+echo -e -n " adding os packages"
+pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; mkdir -p /opt/kube; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl enable iscsid; systemctl start iscsid; yum update -y selinux*; #yum update -y' > /dev/null 2>&1
+echo -e "$GREEN" "ok" "$NO_COLOR"
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 
 #kernel tuning
 echo -e -n " updating kernel settings"
@@ -175,6 +232,7 @@ sysctl -p' > /dev/null 2>&1
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
 #or deploy k3s
+<<<<<<< HEAD
 if [ "$prefix" != k3s ] && [ "$prefix" != rke- ]; then exit; fi
 
 if [ "$prefix" = k3s ]; then
@@ -212,6 +270,30 @@ if [ "$prefix" = rke- ]; then
 
   echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
+=======
+if [ "$prefix" != rke- ]; then exit; fi
+
+echo -e -n " deploying rke2 "
+if [ "$ingress" = nginx ]; then ingress_file="#disable: rke2-ingress-nginx"; else ingress_file="disable: rke2-ingress-nginx"; fi
+
+ssh root@$node1 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; useradd -r -c "etcd user" -s /sbin/nologin -M etcd -U; echo -e "apiVersion: audit.k8s.io/v1\nkind: Policy\nrules:\n- level: RequestResponse" > /etc/rancher/rke2/audit-policy.yaml; echo -e "'$ingress_file'\n#profile: cis-1.6\nselinux: true\nsecrets-encryption: true\ntls-san:\n- rke.'$domain'\nnwrite-kubeconfig-mode: 0600\nkube-controller-manager-arg:\n- bind-address=127.0.0.1\n- use-service-account-credentials=true\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384\nkube-scheduler-arg:\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384\nkube-apiserver-arg:\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384\n- authorization-mode=RBAC,Node\n- anonymous-auth=false\n- audit-policy-file=/etc/rancher/rke2/audit-policy.yaml\n- audit-log-mode=blocking-strict\n- audit-log-maxage=30\nkubelet-arg:\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook" > /etc/rancher/rke2/config.yaml ; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' sh - && systemctl enable --now  rke2-server.service' > /dev/null 2>&1
+
+sleep 10
+
+token=$(ssh root@$node1 'cat /var/lib/rancher/rke2/server/node-token')
+
+pdsh -l root -w $node2,$node3 'mkdir -p /etc/rancher/rke2/ /var/lib/rancher/rke2/server/manifests/; useradd -r -c "etcd user" -s /sbin/nologin -M etcd -U; echo -e "apiVersion: audit.k8s.io/v1\nkind: Policy\nrules:\n- level: RequestResponse" > /etc/rancher/rke2/audit-policy.yaml; echo -e "server: https://'$node1':9345\ntoken: '$token'\n'$ingress_file'\n#profile: cis-1.6\nselinux: true\nsecrets-encryption: true\ntls-san:\n- rke.'$domain'\nnwrite-kubeconfig-mode: 0600\nkube-controller-manager-arg:\n- bind-address=127.0.0.1\n- use-service-account-credentials=true\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384\nkube-scheduler-arg:\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384\nkube-apiserver-arg:\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384\n- authorization-mode=RBAC,Node\n- anonymous-auth=false\n- audit-policy-file=/etc/rancher/rke2/audit-policy.yaml\n- audit-log-mode=blocking-strict\n- audit-log-maxage=30\nkubelet-arg:\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook" > /etc/rancher/rke2/config.yaml ; echo -e "---\napiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' sh - && systemctl enable --now  rke2-server.service' > /dev/null 2>&1
+
+sleep 10
+
+pdsh -l root -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$rke2_channel' INSTALL_RKE2_TYPE=agent sh - && systemctl enable rke2-agent.service && mkdir -p /etc/rancher/rke2/ && echo -e "server: https://rke.'$domain':9345\ntoken: '$token'\nwrite-kubeconfig-mode: 0600\n#profile: cis-1.6\nkube-apiserver-arg:\n- authorization-mode=RBAC,Node\nkubelet-arg:\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook" > /etc/rancher/rke2/config.yaml && systemctl enable --now rke2-agent.service' > /dev/null 2>&1
+
+rsync -avP root@$node1:/etc/rancher/rke2/rke2.yaml ~/.kube/config > /dev/null 2>&1
+chmod 0600 ~/.kube/config
+sed -i'' -e "s/127.0.0.1/$node1/g" ~/.kube/config 
+
+echo -e "$GREEN" "ok" "$NO_COLOR"
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 
 echo -e -n " - cluster active "
 sleep 5
@@ -250,7 +332,11 @@ function rancher () {
   echo -e "$GREEN" "ok" "$NO_COLOR"
 
   #traefik
+<<<<<<< HEAD
   if [ "$ingress" = traefik ]; then kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher_traefik.yml  > /dev/null 2>&1; fi 
+=======
+  if [ "$ingress" = traefik ]; then curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher_traefik.yml | sed "s/rfed.io/$domain/g" | kubectl apply -f - > /dev/null 2>&1; fi 
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 
   # wait for rancher
   echo -e -n " - waiting for rancher "
@@ -292,7 +378,11 @@ function longhorn () {
 #  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.3.2/deploy/longhorn.yaml > /dev/null 2>&1
 
 #  helm repo add longhorn https://charts.longhorn.io && helm repo update
+<<<<<<< HEAD
   helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain > /dev/null 2>&1
+=======
+  helm upgrade -i longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain > /dev/null 2>&1
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 
   sleep 5
 
@@ -318,13 +408,22 @@ function traefik () {
 
   if [ "$ingress" = traefik ]; then
     if [ "$prefix" = rke- ]; then 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_rke.yml > /dev/null 2>&1
         # helm upgrade -i traefik traefik/traefik --namespace traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
     elif [ "$prefix" = k3s ]; then
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
         # helm upgrade -i traefik traefik/traefik --namespace traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
     fi
+<<<<<<< HEAD
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
+=======
+    curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml | sed "s/rfed.io/$domain/g" | kubectl apply -f -   > /dev/null 2>&1
+    #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
     echo -e "$GREEN" "ok" "$NO_COLOR"
   else 
    echo -e "$RED" "nginx installed" "$NO_COLOR"
@@ -336,12 +435,28 @@ function neu () {
   echo -e -n  " - neuvector "
 
   # helm repo add neuvector https://neuvector.github.io/neuvector-helm/
+<<<<<<< HEAD
 
   helm upgrade -i neuvector --namespace neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock  --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.rfed.io --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi > /dev/null 2>&1
 
   kubectl apply -f ~/Dropbox/work/neuvector/neu_traefik.yaml > /dev/null 2>&1
 
   until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -e -n .; sleep 1; done
+=======
+  export CAROOT=certs/
+  mkdir -p certs/
+  mkcert -client -cert-file certs/cert.pem -key-file certs/cert.key NeuVector neuvector.nv.local > /dev/null 2>&1
+  mv certs/rootCA.pem certs/ca.cert
+
+  kubectl create ns neuvector > /dev/null 2>&1
+  kubectl create secret generic internal-cert -n neuvector --from-file=certs/cert.key --from-file=certs/cert.pem --from-file=certs/ca.cert > /dev/null 2>&1
+
+  helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain --set manager.svc.type=ClusterIP --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set controller.internal.certificate.secret=internal-cert --set cve.scanner.internal.certificate.secret=internal-cert --set enforcer.internal.certificate.secret=internal-cert > /dev/null 2>&1
+
+  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/neuvector_traefik.yml | sed "s/rfed.io/$domain/g" | kubectl apply -f - > /dev/null 2>&1
+
+  until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -e -n .; sleep 2; done
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 
   TOKEN=$(curl -sk -H "Content-Type: application/json" https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}' | jq  -r .token.token)
 
@@ -359,6 +474,7 @@ function neu () {
 
 ################################ rox ##############################
 function rox () {
+<<<<<<< HEAD
 # ensure no central-bundle is not present
   if [ -d central-bundle ]; then
     echo -e "$RED" "Warning - cental-bundle already detected..." "$NO_COLOR"
@@ -412,6 +528,33 @@ function rox () {
   echo -e -n "  - creating api token "
   sleep 5
   curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token > ROX_API_TOKEN
+=======
+# helm repo add rhacs https://mirror.openshift.com/pub/rhacs/charts/
+# helm repo update
+
+  echo -e " deploying :"
+  echo -e -n  "  - stackrox - central "  
+  helm upgrade -i -n stackrox --create-namespace stackrox-central-services rhacs/central-services --set imagePullSecrets.username=AndyClemenko --set imagePullSecrets.password=$REGISTRY_PASSWORD --set central.exposure.loadBalancer.enabled=true --set central.disableTelemetry=true --set central.persistence.persistentVolumeClaim.size=5Gi --set central.adminPassword.value=Pa22word > /dev/null 2>&1
+
+  curl -s kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml | sed "s/rfed.io/$domain/g" | kubectl apply -f - > /dev/null 2>&1
+  
+ # wait for central to be up
+  until [ $(curl -ks --max-time 5 --connect-timeout 5 https://stackrox.$domain/main/system-health|grep JavaScript|wc -l) = 1 ]; do echo -e -n "." ; sleep 2; done
+  sleep 5
+  echo -e "$GREEN" "ok" "$NO_COLOR"
+
+  echo -e -n "  - creating api token "
+  export ROX_API_TOKEN=$(curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token)
+  echo -e "$GREEN""ok" "$NO_COLOR"
+
+  echo -e -n  "  - stackrox - collector " 
+  # get init bundle
+  curl -ks https://stackrox.$domain/v1/cluster-init/init-bundles -H 'accept: application/json, text/plain, */*' -H "authorization: Bearer $ROX_API_TOKEN" -H 'content-type: application/json' -d '{"name":"rancher"}' |jq -r .helmValuesBundle | base64 -D > cluster_init_bundle.yaml
+
+  helm upgrade -i -n stackrox --create-namespace stackrox-secured-cluster-services rhacs/secured-cluster-services -f cluster_init_bundle.yaml --set clusterName=rancher --set centralEndpoint=central.stackrox:443 --set scanner.disable=true  > /dev/null 2>&1
+
+  rm -rf cluster_init_bundle.yaml
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
   echo -e "$GREEN""ok" "$NO_COLOR"
 }
 
@@ -435,12 +578,22 @@ function demo () {
   # echo -e -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/ghost.yaml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
 
   echo -e -n " - gitea "
+<<<<<<< HEAD
     helm upgrade -i gitea gitea-charts/gitea --namespace gitea --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=500Mi --set postgresql.persistence.size=500Mi --set gitea.config.server.ROOT_URL=http://git.rfed.io --set gitea.config.server.DOMAIN=git.rfed.io > /dev/null 2>&1
 
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitea_traefik.yaml > /dev/null 2>&1;
 
     # mirror github
     curl -X POST 'http://git.rfed.io/api/v1/repos/migrate' -H 'accept: application/json' -H 'authorization: Basic Z2l0ZWE6UGEyMndvcmQ=' -H 'Content-Type: application/json' -d '{ "clone_addr": "https://github.com/clemenko/fleet", "repo_name": "fleet","repo_owner": "gitea"}' > /dev/null 2>&1
+=======
+    helm upgrade -i gitea gitea-charts/gitea --namespace gitea --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=500Mi --set postgresql.persistence.size=500Mi --set gitea.config.server.ROOT_URL=http://git.$domain --set gitea.config.server.DOMAIN=git.$domain > /dev/null 2>&1
+
+    curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitea_traefik.yaml | sed "s/rfed.io/$domain/g" | kubectl apply -f - > /dev/null 2>&1;
+
+    # mirror github
+    until [ $(curl -s http://git.$domain/explore/repos| grep "<title>" | wc -l) = 1 ]; do sleep 2; echo -n "."; done
+    curl -X POST http://git.$domain/api/v1/repos/migrate -H 'accept: application/json' -H 'authorization: Basic Z2l0ZWE6UGEyMndvcmQ=' -H 'Content-Type: application/json' -d '{ "clone_addr": "https://github.com/clemenko/fleet", "repo_name": "fleet","repo_owner": "gitea"}' > /dev/null 2>&1
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
   echo -e "$GREEN""ok" "$NO_COLOR"
   
   echo -e -n " - minio "
@@ -459,7 +612,11 @@ function demo () {
  # echo -e "$GREEN""ok" "$NO_COLOR"
 
   echo -e -n " - code-server "
+<<<<<<< HEAD
   rsync -avP ~/.kube/config root@$server:/opt/kube/config > /dev/null 2>&1
+=======
+  rsync -avP ~/.kube/config root@$node1:/opt/kube/config > /dev/null 2>&1
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/code-server.yml > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
 
@@ -536,7 +693,11 @@ function keycloak () {
 ############################# slides ################################
 function slides () {
   echo -e -n " slides "
+<<<<<<< HEAD
   rsync -avP /Users/clemenko/Dropbox/work/talks/markdown/* root@$server:/opt/slides > /dev/null 2>&1
+=======
+  rsync -avP /Users/clemenko/Dropbox/work/talks/markdown/* root@$node1:/opt/slides > /dev/null 2>&1
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/slides.yml > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
 }
@@ -547,6 +708,7 @@ function kill () {
 
 if [ ! -z $(dolist | awk '{printf $3","}' | sed 's/,$//') ]; then
   echo -e -n " killing it all "
+<<<<<<< HEAD
   #for i in $(dolist | awk '{print $2}'); do doctl compute droplet delete --force $i; done
   harvester vm delete $(harvester vm |grep -v NAME | awk '{printf $2" "}') > /dev/null 2>&1
   for i in $(dolist | awk '{print $3}'); do ssh-keygen -q -R $i > /dev/null 2>&1; done
@@ -555,6 +717,15 @@ if [ ! -z $(dolist | awk '{printf $3","}' | sed 's/,$//') ]; then
   for i in $(doctl compute volume list --no-header |awk '{print $1}'); do doctl compute volume delete -f $i; done
 
   rm -rf *.txt *.log *.zip *.pub env.* backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN 
+=======
+  harvester vm delete $(harvester vm |grep -v NAME | awk '{printf $2" "}') > /dev/null 2>&1
+  for i in $(dolist | awk '{print $3}'); do ssh-keygen -q -R $i > /dev/null 2>&1; done
+  for i in $(doctl compute domain records list $domain|grep rke |awk '{print $1}'); do doctl compute domain records delete -f $domain $i; done
+  until [ $(dolist | wc -l | sed 's/ //g') == 0 ]; do echo -e -n "."; sleep 2; done
+  for i in $(doctl compute volume list --no-header |awk '{print $1}'); do doctl compute volume delete -f $i; done
+
+  rm -rf *.txt *.log *.zip *.pub env.* certs backup.tar ~/.kube/config central* sensor* *token kubeconfig *TOKEN 
+>>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 
 else
   echo -e -n " no cluster found "
