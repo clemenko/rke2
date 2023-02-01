@@ -73,7 +73,6 @@ echo -e "$GREEN" "ok" "$NO_COLOR"
 
 #get ips
 host_list=$(dolist | awk '{printf $3","}' | sed 's/,$//')
-<<<<<<< HEAD
 server=$(dolist | sed -n 1p | awk '{print $3}')
 worker_list=$(dolist | sed 1d | awk '{printf $3","}' | sed 's/,$//')
 
@@ -91,7 +90,6 @@ doctl compute domain records create $domain --record-type A --record-name rke --
 doctl compute domain records create $domain --record-type A --record-name rke --record-ttl 150 --record-data $node2 > /dev/null 2>&1
 doctl compute domain records create $domain --record-type A --record-name rke --record-ttl 150 --record-data $node3 > /dev/null 2>&1
 doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data rke.$domain. > /dev/null 2>&1
->>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
 sleep 10
