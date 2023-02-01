@@ -1,36 +1,13 @@
 #!/usr/bin/env bash
 
-<<<<<<< HEAD
-# https://github.com/clemenko/k3s/blob/master/k3s.sh
-# this script assumes digitalocean is setup with DNS.
-# you need doctl, kubectl, uuid, jq, k3sup, pdsh and curl installed.
-=======
 # this script assumes you have harvester setup
 # you need harvester, kubectl, uuid, jq, k3sup, pdsh and curl installed.
->>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 # clemenko@gmail.com 
 
 ###################################
 # edit varsw
 ###################################
 set -e
-<<<<<<< HEAD
-num=3
-password=Pa22word
-zone=nyc1
-size=s-4vcpu-8gb
-key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
-domain=rfed.io
-block_volume=0
-
-#image=ubuntu-22-04-x64
-image=rockylinux-9-x64
-
-# rancher / k8s
-prefix=rke- # no rke k3s
-k3s_channel=stable # latest
-rke2_channel=v1.24.7 #latest
-=======
 num=6
 password=Pa22word
 domain=rfed.site
@@ -40,7 +17,6 @@ template=rocky9
 # rancher / k8s
 prefix=rke- # no rke k3s
 rke2_channel=v1.24 #latest
->>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 
 # ingress nginx or traefik
 ingress=traefik # traefik
@@ -58,19 +34,6 @@ export NO_COLOR='\x1b[0m'
 export PDSH_RCMD_TYPE=ssh
 
 #better error checking
-<<<<<<< HEAD
-command -v doctl >/dev/null 2>&1 || { echo -e "$RED" " ** Doctl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
-command -v curl >/dev/null 2>&1 || { echo -e "$RED" " ** Curl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
-command -v jq >/dev/null 2>&1 || { echo -e "$RED" " ** Jq was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
-command -v pdsh >/dev/null 2>&1 || { echo -e "$RED" " ** Pdsh was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
-command -v k3sup >/dev/null 2>&1 || { echo -e "$RED" " ** K3sup was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
-command -v kubectl >/dev/null 2>&1 || { echo -e "$RED" " ** Kubectl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
-
-#### doctl_list ####
-function dolist () { harvester vm |grep -v NAME | awk '{print $1"  "$2"  "$6"  "$4"  "$5}'; }
-
-server=$(dolist | sed -n 1p | awk '{print $3}')
-=======
 command -v curl >/dev/null 2>&1 || { echo -e "$RED" " ** Curl was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo -e "$RED" " ** Jq was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
 command -v pdsh >/dev/null 2>&1 || { echo -e "$RED" " ** Pdsh was not found. Please install. ** " "$NO_COLOR" >&2; exit 1; }
@@ -80,7 +43,6 @@ command -v kubectl >/dev/null 2>&1 || { echo -e "$RED" " ** Kubectl was not foun
 function dolist () { harvester vm |grep -v NAME | grep Run | grep $prefix| awk '{print $1"  "$2"  "$6"  "$4"  "$5}'; }
 
 node1=$(dolist | sed -n 1p | awk '{print $3}')
->>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 
 ################################# up ################################
 function up () {
@@ -96,28 +58,12 @@ fi
 for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 
 #build VMS
-<<<<<<< HEAD
-echo -e -n " building vms -$build_list"
-=======
 echo -e -n " building vms -$build_list "
->>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 harvester vm create --template rocky9 --count $num rke > /dev/null 2>&1
 until [ $(dolist | grep "192.168" | wc -l) = $num ]; do echo -e -n "." ; sleep 2; done
 
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
-<<<<<<< HEAD
-# add block storage
-if [ "$block_volume" -gt "0" ]; then 
-  echo -e -n " adding block storage "
-    for i in $(dolist | awk '{print $2}'); do 
-      doctl compute volume-action attach $(doctl compute volume create $i --region $zone --size $block_volume"GiB" |grep $i| awk '{print $1}') $(doctl compute droplet list | grep $i |awk '{print $1}') > /dev/null 2>&1
-    done
-  echo -e "$GREEN" "ok" "$NO_COLOR"
-fi
-
-=======
->>>>>>> 5c6bc42565e96c3a4f2d222473fe12ba8d6a67db
 #check for SSH
 echo -e -n " checking for ssh "
 for ext in $(dolist | awk '{print $3}'); do
