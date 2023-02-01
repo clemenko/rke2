@@ -96,8 +96,13 @@ worker_list=$(dolist | sed 1d | awk '{printf $3","}' | sed 's/,$//')
 
 #update DNS
 echo -e -n " updating dns"
+<<<<<<< HEAD
 doctl compute domain records create $domain --record-type A --record-name $prefix"1" --record-ttl 300 --record-data $server > /dev/null 2>&1
 doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix"1".$domain. > /dev/null 2>&1
+=======
+doctl compute domain records create $domain --record-type A --record-name $prefix --record-ttl 300 --record-data $server > /dev/null 2>&1
+doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 150 --record-data $prefix.$domain. > /dev/null 2>&1
+>>>>>>> 0d944d5 (added harvester version)
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
 sleep 10
