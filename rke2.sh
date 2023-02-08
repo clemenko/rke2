@@ -400,7 +400,7 @@ function demo () {
 
   echo -e -n " - gitea "
     # helm repo add gitea-charts https://dl.gitea.io/charts/
-    helm upgrade -i gitea gitea-charts/gitea --namespace gitea --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=500Mi --set postgresql.persistence.size=500Mi --set gitea.config.server.ROOT_URL=http://git.rfed.io --set gitea.config.server.DOMAIN=git.rfed.io > /dev/null 2>&1
+   helm upgrade -i gitea gitea-charts/gitea --namespace gitea --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=500Mi --set postgresql.persistence.size=500Mi --set ingress.enabled=true --set ingress.hosts[0].host=git.$domain --set ingress.hosts[0].paths[0].path=/ --set ingress.hosts[0].paths[0].pathType=Prefix --set gitea.config.server.ROOT_URL=http://git.$domain --set gitea.config.server.DOMAIN=git.$domain > /dev/null 2>&1
 
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitea_traefik.yaml > /dev/null 2>&1;
 
