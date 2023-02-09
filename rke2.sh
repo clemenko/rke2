@@ -218,7 +218,7 @@ function rancher () {
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts > /dev/null 2>&1
   helm repo add jetstack https://charts.jetstack.io > /dev/null 2>&1
 
-  helm upgrade -i cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true > /dev/null 2>&1 #--version v1.6.1
+  helm upgrade -i cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set installCRDs=true > /dev/null 2>&1 #--version v1.6.1
 
   # custom TLS certs
   # kubectl create ns cattle-system 
@@ -226,9 +226,9 @@ function rancher () {
   # kubectl -n cattle-system create secret generic tls-ca --from-file=cacerts.pem
   # kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=cacerts.pem
 
-  # helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set additionalTrustedCAs=true --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true
+  # helm upgrade -i rancher rancher-latest/rancher -n cattle-system --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set additionalTrustedCAs=true --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true
  
-  helm upgrade -i rancher rancher-latest/rancher --namespace cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath > /dev/null 2>&1
+  helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath > /dev/null 2>&1
   # --version 2.7.0-rc1 --devel
 
   echo -e "$GREEN" "ok" "$NO_COLOR"
@@ -276,7 +276,7 @@ function longhorn () {
 #  kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.3.2/deploy/longhorn.yaml > /dev/null 2>&1
 
 #  helm repo add longhorn https://charts.longhorn.io && helm repo update
-  helm upgrade -i longhorn  longhorn/longhorn --namespace longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain > /dev/null 2>&1
+  helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain > /dev/null 2>&1
 
   sleep 5
 
@@ -303,10 +303,10 @@ function traefik () {
   if [ "$ingress" = traefik ]; then
     if [ "$prefix" = rke ]; then 
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_rke.yml > /dev/null 2>&1
-        # helm upgrade -i traefik traefik/traefik --namespace traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
+        # helm upgrade -i traefik traefik/traefik -n traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
     elif [ "$prefix" = k3s ]; then
         kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
-        # helm upgrade -i traefik traefik/traefik --namespace traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
+        # helm upgrade -i traefik traefik/traefik -n traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
     fi
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml > /dev/null 2>&1
     echo -e "$GREEN" "ok" "$NO_COLOR"
@@ -400,7 +400,7 @@ function demo () {
 
   echo -e -n " - gitea "
     # helm repo add gitea-charts https://dl.gitea.io/charts/
-   helm upgrade -i gitea gitea-charts/gitea --namespace gitea --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=500Mi --set postgresql.persistence.size=500Mi --set ingress.enabled=true --set ingress.hosts[0].host=git.$domain --set ingress.hosts[0].paths[0].path=/ --set ingress.hosts[0].paths[0].pathType=Prefix --set gitea.config.server.ROOT_URL=http://git.$domain --set gitea.config.server.DOMAIN=git.$domain > /dev/null 2>&1
+   helm upgrade -i gitea gitea-charts/gitea -n gitea --create-namespace --set gitea.admin.password=Pa22word --set gitea.admin.username=gitea --set persistence.size=500Mi --set postgresql.persistence.size=500Mi --set ingress.enabled=true --set ingress.hosts[0].host=git.$domain --set ingress.hosts[0].paths[0].path=/ --set ingress.hosts[0].paths[0].pathType=Prefix --set gitea.config.server.ROOT_URL=http://git.$domain --set gitea.config.server.DOMAIN=git.$domain > /dev/null 2>&1
 
     kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitea_traefik.yaml > /dev/null 2>&1;
 
@@ -410,7 +410,7 @@ function demo () {
   echo -e "$GREEN""ok" "$NO_COLOR"
   
   echo -e -n " - minio "
-#   helm upgrade -i minio minio/minio --namespace minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
+#   helm upgrade -i minio minio/minio -n minio --set rootUser=root,rootPassword=Pa22word --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=2Gi > /dev/null 2>&1
    # kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio.yml > /dev/null 2>&1
   # https://github.com/minio/minio/blob/master/helm/minio/values.yaml
 #   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/minio_traefik.yml > /dev/null 2>&1
@@ -420,9 +420,11 @@ function demo () {
    # curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_TOKEN
  # echo -e "$GREEN""ok" "$NO_COLOR"
 
- # echo -e -n " - harbor "
-  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/harbor_traefik_ingress.yml > /dev/null 2>&1
- # echo -e "$GREEN""ok" "$NO_COLOR"
+  echo -e -n " - harbor "
+  # helm repo add harbor https://helm.goharbor.io
+  #kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/harbor_traefik_ingress.yml > /dev/null 2>&1\
+  helm upgrade -i harbor harbor/harbor -n harbor --create-namespace --set expose.tls.enabled=false --set expose.tls.auto.commonName=harbor.rfed.site --set expose.ingress.hosts.core=harbor.rfed.site --set persistence.enabled=false --set harborAdminPassword="Pa22word" --set externalURL=http://harbor.rfed.site
+  echo -e "$GREEN""ok" "$NO_COLOR"
 
   echo -e -n " - code-server "
   rsync -avP ~/.kube/config root@$server:/opt/kube/config > /dev/null 2>&1
