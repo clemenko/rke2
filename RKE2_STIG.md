@@ -426,6 +426,7 @@ profile: cis-1.6
 selinux: true
 secrets-encryption: true
 write-kubeconfig-mode: 0640
+use-service-account-credentials: true
 kube-controller-manager-arg:
 - bind-address=127.0.0.1
 - use-service-account-credentials=true
