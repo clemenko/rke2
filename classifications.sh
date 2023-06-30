@@ -5,7 +5,7 @@
 
 class=$1
 
-if [ -z $rancherUrl ]; then 
+if [ -z $class ]; then 
  echo "$RED [warn]$NORMAL Please ensure you have kubeconfig and classification to the command."
  echo "  $BLUE Use:$NORMAL $0 <CLASSIFICATION> "
  echo "  $BLUE Use:$NORMAL $0 TS "
@@ -24,7 +24,7 @@ You are accessing a U.S. Government (USG) Information System (IS) that is provid
 EOF
 )
 
-case $2 in
+case $class in
 U )
 #unclass
 cat <<EOF | kubectl apply -f -  > /dev/null 2>&1
