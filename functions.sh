@@ -365,7 +365,7 @@ function demo () {
 
   echo -e -n " - cockroachdb "
   # helm repo add cockroachdb https://charts.cockroachdb.com/ --force-update
-  helm upgrade -i cockroachdb cockroachdb/cockroachdb -n cockroachdb --create-namespace --set ingress.enabled=true --set ingress.hosts[0]=roach.$domain --set storage.persistentVolume.size=1Gi --set tls.enabled=false  --set init.provisioning.enabled=true --set init.provisioning.users[0].name=admin --set init.provisioning.users[0].password=$password --set init.provisioning.users[0].options=LOGIN > /dev/null 2>&1
+  # helm upgrade -i cockroachdb cockroachdb/cockroachdb -n cockroachdb --create-namespace --set ingress.enabled=true --set ingress.hosts[0]=roach.$domain --set storage.persistentVolume.size=1Gi --set tls.enabled=false  --set init.provisioning.enabled=true --set init.provisioning.users[0].name=admin --set init.provisioning.users[0].password=$password --set init.provisioning.users[0].options=LOGIN > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
 
   echo -e -n " - gitea "

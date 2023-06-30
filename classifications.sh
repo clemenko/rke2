@@ -25,7 +25,7 @@ EOF
 )
 
 case $class in
-U )
+U | u )
 #unclass
 cat <<EOF | kubectl apply -f -  > /dev/null 2>&1
 apiVersion: management.cattle.io/v3
@@ -36,7 +36,7 @@ value: '{"bannerHeader":{"background":"#007a33","color":"#ffffff","textAlignment
 EOF
 ;;
 
-TS )
+TS | ts )
 #top secret
 cat <<EOF | kubectl apply -f -  > /dev/null 2>&1
 apiVersion: management.cattle.io/v3
