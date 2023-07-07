@@ -38,6 +38,41 @@ pdsh -l root -w $host_list 'mkdir -p /etc/rancher/{rke2,k3s}/; echo -e "mirrors:
 echo -e "$GREEN" "ok" "$NO_COLOR"
 }
 
+############################# hobbyfarm ################################
+function hobbyfarm () {
+### Add Helm Repo### Add Helm Repo
+echo -e -n " - deploying hobbyfarm "
+helm repo add hobbyfarm https://hobbyfarm.github.io/hobbyfarm --force-update > /dev/null 2>&1
+
+### Create Namespace
+kubectl create namespace hobbyfarm > /dev/null 2>&1
+
+### Create Certificates
+kubectl -n hobbyfarm create secret generic tls-ca --from-file=/Users/clemenko/Dropbox/work/rfed.me/io/cacerts.pem  > /dev/null 2>&1
+kubectl -n hobbyfarm create secret tls tls-hobbyfarm-certs  --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1
+
+### adding logos
+kubectl create configmap rgs-logo -n hobbyfarm --from-file=rancher-labs-stacked-color.svg=rfed-logo-stacked.svg > /dev/null 2>&1
+
+### and aws creds - set the variables on the shell
+# set export ACCESS_KEY=...
+# set export SECRET_KEY=...
+kubectl create secret -n hobbyfarm generic aws-creds --from-literal=access_key=$ACCESS_KEY --from-literal=secret_key=$SECRET_KEY > /dev/null 2>&1
+
+### Install Hobbyfarm
+helm upgrade -i hobbyfarm hobbyfarm/hobbyfarm -n hobbyfarm --set ingress.enabled=true --set ingress.tls.enabled=true --set ingress.tls.secrets.backend=tls-hobbyfarm-certs --set ingress.tls.secrets.admin=tls-hobbyfarm-certs --set ingress.tls.secrets.ui=tls-hobbyfarm-certs --set ingress.tls.secrets.shell=tls-hobbyfarm-certs --set ingress.hostnames.backend=backend.rfed.io --set ingress.hostnames.admin=hobby-admin.rfed.io --set ingress.hostnames.ui=hobbyfarm.rfed.io --set ingress.hostnames.shell=hobby-shell.rfed.io  --set ui.config.title="RGS - Workshop"  --set ui.config.login.customlogo=rgs-logo --set terraform.enabled=true --set shell.replicas=3 > /dev/null 2>&1
+#--set users.admin.enabled=true --set users.admin.password='$2a$10$QkpisIWlrq/uA/BWcOX0/uYWinHcbbtbPMomY6tp3Gals0LbuFEDO'
+
+sleep 30
+
+echo -e "$GREEN" "ok" "$NO_COLOR"
+
+echo -e -n " - adding settings "
+### add users
+kubectl apply -f https://raw.githubusercontent.com/clemenko/hobbyfarm/main/settings.yaml > /dev/null 2>&1
+echo -e "$GREEN" "ok" "$NO_COLOR"
+}
+
 ############################# kernel ################################
 function kernel () {
 #kernel tuning
