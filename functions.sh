@@ -54,14 +54,17 @@ kubectl -n hobbyfarm create secret tls tls-hobbyfarm-certs  --cert=/Users/clemen
 ### adding logos
 kubectl create configmap rgs-logo -n hobbyfarm --from-file=rancher-labs-stacked-color.svg=rfed-logo-stacked.svg > /dev/null 2>&1
 
-### and aws creds - set the variables on the shell
+### add creds - set the variables on the shell
 # set export ACCESS_KEY=...
 # set export SECRET_KEY=...
+# set export DO_TOKEN=...
 kubectl create secret -n hobbyfarm generic aws-creds --from-literal=access_key=$ACCESS_KEY --from-literal=secret_key=$SECRET_KEY > /dev/null 2>&1
+kubectl create secret -n hobbyfarm generic do-token --from-literal=token=$DO_TOKEN > /dev/null 2>&1
 
 ### Install Hobbyfarm
-helm upgrade -i hobbyfarm hobbyfarm/hobbyfarm -n hobbyfarm --set ingress.enabled=true --set ingress.tls.enabled=true --set ingress.tls.secrets.backend=tls-hobbyfarm-certs --set ingress.tls.secrets.admin=tls-hobbyfarm-certs --set ingress.tls.secrets.ui=tls-hobbyfarm-certs --set ingress.tls.secrets.shell=tls-hobbyfarm-certs --set ingress.hostnames.backend=backend.rfed.io --set ingress.hostnames.admin=hobby-admin.rfed.io --set ingress.hostnames.ui=hobbyfarm.rfed.io --set ingress.hostnames.shell=hobby-shell.rfed.io  --set ui.config.title="RGS - Workshop"  --set ui.config.login.customlogo=rgs-logo --set terraform.enabled=true --set shell.replicas=3 > /dev/null 2>&1
-#--set users.admin.enabled=true --set users.admin.password='$2a$10$QkpisIWlrq/uA/BWcOX0/uYWinHcbbtbPMomY6tp3Gals0LbuFEDO'
+helm upgrade -i hobbyfarm chart/ -n hobbyfarm --set ingress.enabled=true --set ingress.tls.enabled=true --set ingress.tls.secrets.backend=tls-hobbyfarm-certs --set ingress.tls.secrets.admin=tls-hobbyfarm-certs --set ingress.tls.secrets.ui=tls-hobbyfarm-certs --set ingress.tls.secrets.shell=tls-hobbyfarm-certs --set ingress.hostnames.backend=backend.rfed.io --set ingress.hostnames.admin=hobby-admin.rfed.io --set ingress.hostnames.ui=hobbyfarm.rfed.io --set ingress.hostnames.shell=hobby-shell.rfed.io  --set ui.config.title="RGS - Workshop"  --set ui.config.login.customlogo=rgs-logo --set terraform.enabled=true --set shell.replicas=3 --set gargantua.image=ebauman/gargantua:pr-154-3 > /dev/null 2>&1
+
+helm install hf-provisioner-digitalocean hf-provisioner-digitalocean/chart/hf-provisioner-digitalocean --namespace hobbyfarm > /dev/null 2>&1
 
 sleep 30
 
@@ -167,7 +170,7 @@ if [ $domain = "rfed.io" ]; then
   #helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true > /dev/null 2>&1
 
   # carbide all the things - official certs
-  helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set global.cattle.psp.enabled=false > /dev/null 2>&1 #--set global.cattle.psp.enabled=false
+  helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set global.cattle.psp.enabled=false --version=v2.7.4 > /dev/null 2>&1 #--set global.cattle.psp.enabled=false
   
     #traefik
   if [ "$ingress" = traefik ]; then curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher_traefik_tls.yml | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1; fi 
@@ -260,7 +263,7 @@ function longhorn () {
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
 
   # non carbide
-  helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set default.storageMinimalAvailablePercentage=25 --set default.storageOverProvisioningPercentage=200 --set default.persistence.defaultDataLocality=best-effort > /dev/null 2>&1
+  helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set default.storageMinimalAvailablePercentage=25 --set default.storageOverProvisioningPercentage=200  > /dev/null 2>&1  # --set defaultSettings.v2DataEngine=true --set persistence.defaultDataLocality="best-effort"
 
   # carbide all the things --set global.cattle.systemDefaultRegistry=rgcrprod.azurecr.us 
 
@@ -314,8 +317,16 @@ function neu () {
 #  kubectl create secret generic internal-cert -n neuvector --from-file=certs/cert.key --from-file=certs/cert.pem --from-file=certs/ca.cert > /dev/null 2>&1
 # --set controller.internal.certificate.secret=internal-cert --set cve.scanner.internal.certificate.secret=internal-cert --set enforcer.internal.certificate.secret=internal-cert
 
-  helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace  --set imagePullSecrets=regsecret --set k3s.enabled=true --set k3s.runtimePath=/run/k3s/containerd/containerd.sock --set manager.svc.type=ClusterIP --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set internal.certmanager.enabled=true > /dev/null 2>&1
- # --set manager.runAsUser=1000 --set cve.updater.runAsUser=1000 --set cve.scanner.runAsUser=1000 --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain
+  # clear
+  helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set manager.svc.type=ClusterIP --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set internal.certmanager.enabled=true --set manager.runAsUser=1000 --set cve.updater.runAsUser=1000 --set cve.scanner.runAsUser=1000 --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain > /dev/null 2>&1
+
+  export govmessage="PGI+WW91IGFyZSBhY2Nlc3NpbmcgYSBVLlMuIEdvdmVybm1lbnQgKFVTRykgSW5mb3JtYXRpb24gU3lzdGVtIChJUykgdGhhdCBpcyBwcm92aWRlZCBmb3IgVVNHLWF1dGhvcml6ZWQgdXNlIG9ubHkuPC9iPjxicj4KPGJyPgpCeSB1c2luZyB0aGlzIElTICh3aGljaCBpbmNsdWRlcyBhbnkgZGV2aWNlIGF0dGFjaGVkIHRvIHRoaXMgSVMpLCB5b3UgY29uc2VudCB0byB0aGUgZm9sbG93aW5nIGNvbmRpdGlvbnM6PGJyPgo8YnI+Ci1UaGUgVVNHIHJvdXRpbmVseSBpbnRlcmNlcHRzIGFuZCBtb25pdG9ycyBjb21tdW5pY2F0aW9ucyBvbiB0aGlzIElTIGZvciBwdXJwb3NlcyBpbmNsdWRpbmcsIGJ1dCBub3QgbGltaXRlZCB0bywgcGVuZXRyYXRpb24gdGVzdGluZywgQ09NU0VDIG1vbml0b3JpbmcsIG5ldHdvcmsgb3BlcmF0aW9ucyBhbmQgZGVmZW5zZSwgcGVyc29ubmVsIG1pc2NvbmR1Y3QgKFBNKSwgbGF3IGVuZm9yY2VtZW50IChMRSksIGFuZCBjb3VudGVyaW50ZWxsaWdlbmNlIChDSSkgaW52ZXN0aWdhdGlvbnMuPGJyPgo8YnI+Ci1BdCBhbnkgdGltZSwgdGhlIFVTRyBtYXkgaW5zcGVjdCBhbmQgc2VpemUgZGF0YSBzdG9yZWQgb24gdGhpcyBJUy48YnI+Cjxicj4KLUNvbW11bmljYXRpb25zIHVzaW5nLCBvciBkYXRhIHN0b3JlZCBvbiwgdGhpcyBJUyBhcmUgbm90IHByaXZhdGUsIGFyZSBzdWJqZWN0IHRvIHJvdXRpbmUgbW9uaXRvcmluZywgaW50ZXJjZXB0aW9uLCBhbmQgc2VhcmNoLCBhbmQgbWF5IGJlIGRpc2Nsb3NlZCBvciB1c2VkIGZvciBhbnkgVVNHLWF1dGhvcml6ZWQgcHVycG9zZS48YnI+Cjxicj4KLVRoaXMgSVMgaW5jbHVkZXMgc2VjdXJpdHkgbWVhc3VyZXMgKGUuZy4sIGF1dGhlbnRpY2F0aW9uIGFuZCBhY2Nlc3MgY29udHJvbHMpIHRvIHByb3RlY3QgVVNHIGludGVyZXN0cy0tbm90IGZvciB5b3VyIHBlcnNvbmFsIGJlbmVmaXQgb3IgcHJpdmFjeS48YnI+Cjxicj4KLU5vdHdpdGhzdGFuZGluZyB0aGUgYWJvdmUsIHVzaW5nIHRoaXMgSVMgZG9lcyBub3QgY29uc3RpdHV0ZSBjb25zZW50IHRvIFBNLCBMRSBvciBDSSBpbnZlc3RpZ2F0aXZlIHNlYXJjaGluZyBvciBtb25pdG9yaW5nIG9mIHRoZSBjb250ZW50IG9mIHByaXZpbGVnZWQgY29tbXVuaWNhdGlvbnMsIG9yIHdvcmsgcHJvZHVjdCwgcmVsYXRlZCB0byBwZXJzb25hbCByZXByZXNlbnRhdGlvbiBvciBzZXJ2aWNlcyBieSBhdHRvcm5leXMsIHBzeWNob3RoZXJhcGlzdHMsIG9yIGNsZXJneSwgYW5kIHRoZWlyIGFzc2lzdGFudHMuIFN1Y2ggY29tbXVuaWNhdGlvbnMgYW5kIHdvcmsgcHJvZHVjdCBhcmUgcHJpdmF0ZSBhbmQgY29uZmlkZW50aWFsLiBTZWUgVXNlciBBZ3JlZW1lbnQgZm9yIGRldGFpbHMuIDxicj4gCg=="
+
+  # Unclass
+  #helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set manager.svc.type=ClusterIP --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set internal.certmanager.enabled=true --set manager.env.envs[0].name=CUSTOM_PAGE_HEADER_COLOR --set manager.env.envs[0].value="#007a33" --set manager.env.envs[1].name=CUSTOM_PAGE_HEADER_CONTENT --set manager.env.envs[1].value="VS8vRk9VTwo=" --set manager.env.envs[2].name=CUSTOM_PAGE_FOOTER_COLOR --set manager.env.envs[2].value="#007a33" --set manager.env.envs[3].name=CUSTOM_PAGE_FOOTER_CONTENT --set manager.env.envs[3].value="VS8vRk9VTwo=" --set manager.env.envs[4].name=CUSTOM_EULA_POLICY --set manager.env.envs[4].value=$govmessage
+
+  # TS
+  #helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set manager.svc.type=ClusterIP --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set internal.certmanager.enabled=true --set manager.env.envs[0].name=CUSTOM_PAGE_HEADER_COLOR --set manager.env.envs[0].value="#fce83a" --set manager.env.envs[1].name=CUSTOM_PAGE_HEADER_CONTENT --set manager.env.envs[1].value="VE9QIFNFQ1JFVC8vU0NJCg==" --set manager.env.envs[2].name=CUSTOM_PAGE_FOOTER_COLOR --set manager.env.envs[2].value="#fce83a" --set manager.env.envs[3].name=CUSTOM_PAGE_FOOTER_CONTENT --set manager.env.envs[3].value="VE9QIFNFQ1JFVC8vU0NJCg==" --set manager.env.envs[4].name=CUSTOM_EULA_POLICY --set manager.env.envs[4].value=$govmessage
 
   curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/neuvector_traefik.yml | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
 
