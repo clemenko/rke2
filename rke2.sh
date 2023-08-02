@@ -23,7 +23,7 @@ image=rockylinux-9-x64
 
 # rancher / k8s
 prefix=rke # no rke k3s
-rke2_channel=v1.25 #latest
+rke2_channel=v1.26 #latest
 
 # ingress nginx or traefik
 ingress=traefik
