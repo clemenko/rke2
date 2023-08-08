@@ -241,3 +241,9 @@ cat >> /etc/NetworkManager/conf.d/rke2-canal.conf << EOF
 unmanaged-devices=interface-name:cali*;interface-name:flannel*
 EOF
 ```
+
+
+
+```
+kubectl patch configmap/rke2-ingress-nginx-controller -n kube-system --type merge -p '{"data":{"ssl-protocols":"TLSv1.2 TLSv1.3","ssl-ciphers":"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256"}}'
+```

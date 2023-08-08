@@ -342,36 +342,6 @@ function neu () {
   echo -e "$GREEN" "ok" "$NO_COLOR"
 }
 
-################################ rox ##############################
-function rox () {
-# helm repo add rhacs https://mirror.openshift.com/pub/rhacs/charts/ --force-update
-
-  echo -e " deploying :"
-  echo -e -n  "  - stackrox - central "  
-  helm upgrade -i -n stackrox --create-namespace stackrox-central-services rhacs/central-services --set imagePullSecrets.username=AndyClemenko --set imagePullSecrets.password=$REGISTRY_PASSWORD --set central.exposure.loadBalancer.enabled=true --set central.persistence.persistentVolumeClaim.size=5Gi --set central.db.persistence.persistentVolumeClaim.size=5Gi --set central.resources.requests.memory="2Gi" --set central.resources.limits.memory="4Gi" --set central.db.resources.requests.memory="2Gi" --set central.db.resources.limits.memory="4Gi" --set central.resources.requests.cpu="500m" --set central.resources.limits.cpu="1500m" --set central.db.resources.requests.cpu="500m" --set central.db.resources.limits.cpu="1500m" --set central.adminPassword.value=$password > /dev/null 2>&1
-
-  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/stackrox_traefik_crd.yml | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
-  
- # wait for central to be up
-  until [ $(curl -ks --max-time 5 --connect-timeout 5 https://stackrox.$domain/main/system-health|grep JavaScript|wc -l) = 1 ]; do echo -e -n "." ; sleep 2; done
-  sleep 5
-  echo -e "$GREEN" "ok" "$NO_COLOR"
-
-  echo -e -n "  - creating api token "
-  export ROX_API_TOKEN=$(curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token)
-  echo -e "$GREEN""ok" "$NO_COLOR"
-
-  echo -e -n  "  - stackrox - collector " 
-  # get init bundle - BROKEN
-  curl -ks https://stackrox.$domain/v1/cluster-init/init-bundles -H 'accept: application/json, text/plain, */*' -H "authorization: Bearer $ROX_API_TOKEN" -H 'content-type: application/json' -d '{"name":"rancher"}' |jq -r .helmValuesBundle | base64 -D > cluster_init_bundle.yaml
-
-  helm upgrade -i -n stackrox --create-namespace stackrox-secured-cluster-services rhacs/secured-cluster-services -f cluster_init_bundle.yaml --set clusterName=rancher --set centralEndpoint=central.stackrox:443 --set scanner.disable=true  > /dev/null 2>&1
-
-  rm -rf cluster_init_bundle.yaml
-  echo -e "$GREEN""ok" "$NO_COLOR"
-}
-
-
 ############################# fleet ################################
 function fleet () {
   echo -e -n " fleet-ing "
