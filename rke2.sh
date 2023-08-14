@@ -184,6 +184,5 @@ case "$1" in
         rancher) rancher;;
         demo) demo;;
         fleet) fleet;;
-        hobbyfarm ) hobbyfarm;;
         *) usage;;
 esac
