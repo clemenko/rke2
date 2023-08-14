@@ -10,7 +10,6 @@ function usage () {
   echo -e " Usage: $0 {up|kill|tl|rancher|demo|full}"
   echo -e ""
   echo -e "${BLUE} $0 up # build the vms ${NO_COLOR}"
-  echo -e " $0 tl # traefik and longhorn"
   echo -e " ${RED}$0 rancher # rancher will build cluster if not present${NO_COLOR}"
   echo -e " $0 demo # deploy demo apps"
   echo -e " $0 fleet # deploy fleet apps"
@@ -142,7 +141,7 @@ function rancher () {
 
   if [[ -z $(dolist | awk '{printf $3","}' | sed 's/,$//') ]] && ! kubectl get node > /dev/null 2>&1 ; then
     echo -e "$BLUE" "Building cluster first." "$NO_COLOR"
-    up && traefik && longhorn
+    up && longhorn
   fi
 
   echo -e "$BLUE" " deploying rancher" "$NO_COLOR"
@@ -173,15 +172,9 @@ if [ $domain = "rfed.io" ]; then
   helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true  > /dev/null 2>&1 
   # --version=v2.7.4
 
-    #traefik
-  if [ "$ingress" = traefik ]; then curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher_traefik_tls.yml | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1; fi 
-
   else
    # self signed certs
     helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" --set systemDefaultRegistry=rgcrprod.azurecr.us > /dev/null 2>&1 
-  
-    #traefik
-    if [ "$ingress" = traefik ]; then curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher_traefik.yml | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1; fi 
 
   fi
  
@@ -283,27 +276,6 @@ function longhorn () {
   echo -e "$GREEN" "ok" "$NO_COLOR"
 }
 
-################################ traefik ##############################
-function traefik () {
-  echo -e -n  " - traefik "
-  #helm repo add traefik https://helm.traefik.io/traefik --force-update
-
-  if [ "$ingress" = traefik ]; then
-    if [[ "$prefix" = *"rke"* ]]; then 
-        kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_rke.yml > /dev/null 2>&1
-        # helm upgrade -i traefik traefik/traefik -n traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
-    elif [ "$prefix" = k3s ]; then
-        echo -n " nope "
-        # kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_crd_deployment.yml > /dev/null 2>&1
-        # helm upgrade -i traefik traefik/traefik -n traefik --create-namespace --set service.type=NodePort --set deployment.kind=DaemonSet --set ports.web.port=80 --set ports.websecure.port=443 --set hostNetwork=true --set securityContext.runAsNonRoot=false --set securityContext.capabilities.add[0]=NET_BIND_SERVICE --set securityContext.allowPrivilegeEscalation=true --set securityContext.runAsGroup=0 --set securityContext.runAsUser=0
-    fi
-    curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/traefik_ingressroute.yaml | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
-    echo -e "$GREEN" "ok" "$NO_COLOR"
-  else 
-   echo -e "$RED" "nginx installed" "$NO_COLOR"
-  fi
-}
-
 ################################ neu ##############################
 function neu () {
   echo -e -n  " - neuvector "
@@ -328,8 +300,6 @@ function neu () {
 
   # TS
   #helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set manager.svc.type=ClusterIP --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set internal.certmanager.enabled=true --set manager.env.envs[0].name=CUSTOM_PAGE_HEADER_COLOR --set manager.env.envs[0].value="#fce83a" --set manager.env.envs[1].name=CUSTOM_PAGE_HEADER_CONTENT --set manager.env.envs[1].value="VE9QIFNFQ1JFVC8vU0NJCg==" --set manager.env.envs[2].name=CUSTOM_PAGE_FOOTER_COLOR --set manager.env.envs[2].value="#fce83a" --set manager.env.envs[3].name=CUSTOM_PAGE_FOOTER_CONTENT --set manager.env.envs[3].value="VE9QIFNFQ1JFVC8vU0NJCg==" --set manager.env.envs[4].name=CUSTOM_EULA_POLICY --set manager.env.envs[4].value=$govmessage
-
-  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/neuvector_traefik.yml | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
 
   until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -e -n .; sleep 1; done
 
@@ -364,25 +334,9 @@ function demo () {
    helm upgrade -i minio minio/minio -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=1Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain > /dev/null 2>&1
    echo -e "$GREEN""ok" "$NO_COLOR"
 
-  echo -e -n " - jenkins "
-  # helm repo add jenkins https://charts.jenkins.io --force-update
-  helm upgrade -i jenkins jenkins/jenkins -n jenkins --create-namespace --set controller.adminPassword=$password --set controller.ingress.enabled=true --set controller.ingress.hostName=jenkins.$domain --set persistence.size=1Gi > /dev/null 2>&1
-   # curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"jenkins","role":null,"roles":["Continuous Integration"]}'| jq -r .token > jenkins_TOKEN
-  echo -e "$GREEN""ok" "$NO_COLOR"
-
   echo -e -n " - harbor "
   # helm repo add harbor https://helm.goharbor.io --force-update
   helm upgrade -i harbor harbor/harbor -n harbor --create-namespace --set expose.tls.enabled=false --set expose.tls.auto.commonName=harbor.$domain --set expose.ingress.hosts.core=harbor.$domain --set persistence.enabled=true --set harborAdminPassword=$password --set externalURL=http://harbor.$domain --set notary.enabled=false > /dev/null 2>&1;
-  echo -e "$GREEN""ok" "$NO_COLOR"
-
-  echo -e -n " - code-server "
-#  rsync -avP ~/.kube/config root@$server:/opt/kube/config > /dev/null 2>&1
-#  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/code-server.yml | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
-  echo -e "$GREEN""ok" "$NO_COLOR"
-
-  echo -e -n " - cockroachdb "
-  # helm repo add cockroachdb https://charts.cockroachdb.com/ --force-update
-  # helm upgrade -i cockroachdb cockroachdb/cockroachdb -n cockroachdb --create-namespace --set ingress.enabled=true --set ingress.hosts[0]=roach.$domain --set storage.persistentVolume.size=1Gi --set tls.enabled=false  --set init.provisioning.enabled=true --set init.provisioning.users[0].name=admin --set init.provisioning.users[0].password=$password --set init.provisioning.users[0].options=LOGIN > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
 
   echo -e -n " - gitea "
@@ -394,8 +348,6 @@ function demo () {
 
   curl -X POST http://git.$domain/api/v1/repos/migrate -H 'accept: application/json' -H 'authorization: Basic Z2l0ZWE6UGEyMndvcmQ=' -H 'Content-Type: application/json' -d '{ "clone_addr": "https://github.com/clemenko/fleet", "repo_name": "fleet","repo_owner": "gitea"}' > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
-
- #echo -e -n " - graylog "; kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/graylog.yaml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
 
 } 
 
@@ -418,8 +370,6 @@ function keycloak () {
 
   #helm upgrade -i keycloak  bitnami/keycloak --namespace keycloak --create-namespace --set auth.adminUser=admin --set auth.adminPassword=Pa22word > /dev/null 2>&1
   # --set ingress.enabled=true --set ingress.hostname=keycloak.$domain --set ingress.tls=true --set tls.enabled=true --set httpRelativePath="/"
-
-  #curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak_traefik.yaml  | sed "s/rfed.xx/$domain/g" | kubectl apply -f -  > /dev/null 2>&1
   
   echo -e "$GREEN""ok" "$NO_COLOR"
   
