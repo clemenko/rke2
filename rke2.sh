@@ -135,7 +135,7 @@ if [ "$prefix" = rke ]; then
 # for CIS
 #  cp -f /usr/local/share/rke2/rke2-cis-sysctl.conf /etc/sysctl.d/60-rke2-cis.conf; systemctl restart systemd-sysctl;
 
-  sleep 10
+  sleep 15
 
   token=$(ssh root@$server 'cat /var/lib/rancher/rke2/server/node-token')
 
