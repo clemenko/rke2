@@ -106,7 +106,7 @@ function rancher () {
     up && longhorn
   fi
 
-  echo -e "$BLUE" " deploying rancher" "$NO_COLOR"
+  echo -e "$BLUE" "deploying rancher" "$NO_COLOR"
   #helm repo add rancher-latest https://releases.rancher.com/server-charts/latest --force-update > /dev/null 2>&1
   #helm repo add carbide-charts https://rancherfederal.github.io/carbide-charts --force-update > /dev/null 2>&1
   #helm repo add jetstack https://charts.jetstack.io --force-update > /dev/null 2>&1
