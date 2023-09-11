@@ -12,7 +12,7 @@ num=6
 export password=Pa22word
 export domain=rfed.site
 
-template=rocky9
+template=rocky
 
 # rancher / k8s
 prefix=rke- # no rke k3s
