@@ -16,14 +16,7 @@ template=rocky
 
 # rancher / k8s
 prefix=rke- # no rke k3s
-rke2_channel=v1.25 #latest
-
-# ingress nginx or traefik
-ingress=traefik # traefik
-
-# stackrox automation
-export REGISTRY_USERNAME=AndyClemenko
-# export REGISTRY_PASSWORD= # set on the command line 
+rke2_channel=v1.26 #latest
 
 # Carbide creds
 export CARBIDEUSER=andy-clemenko-read-token
