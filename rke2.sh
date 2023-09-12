@@ -22,7 +22,7 @@ domain=rfed.io
 image=rockylinux-9-x64
 
 # rancher / k8s
-prefix=k3s # no rke k3s
+prefix=rke # no rke k3s
 k8s_version=v1.26 #latest
 
 # Carbide creds
