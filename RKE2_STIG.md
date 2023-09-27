@@ -422,11 +422,12 @@ Upgrade RKE2 to the supported version. Institute and adhere to the policies and 
 Server:
 
 ```yaml
-profile: cis-1.6
+#profile: cis-1.23
 selinux: true
 secrets-encryption: true
-write-kubeconfig-mode: 0640
-use-service-account-credentials: true
+tls-san:
+- rke.rfed.io
+write-kubeconfig-mode: 0600
 kube-controller-manager-arg:
 - bind-address=127.0.0.1
 - use-service-account-credentials=true
@@ -447,6 +448,7 @@ kubelet-arg:
 - protect-kernel-defaults=true
 - read-only-port=0
 - authorization-mode=Webhook
+- streaming-connection-idle-timeout=5m
 ```
 
 Now run:
