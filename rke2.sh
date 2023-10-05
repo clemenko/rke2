@@ -154,6 +154,7 @@ fi
 echo -e -n " - cluster active "
 sleep 10
 until [ $(kubectl get node|grep NotReady|wc -l) = 0 ]; do echo -e -n "."; sleep 2; done
+sleep 10
 echo -e "$GREEN" "ok" "$NO_COLOR"
 }
 
