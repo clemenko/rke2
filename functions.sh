@@ -265,6 +265,7 @@ data:
   userinitcfg.yaml: |
     always_reload: true
     users:
+      Timeout: 3600
     -
       Fullname: admin
       Password: Pa22word
