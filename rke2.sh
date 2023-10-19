@@ -18,13 +18,11 @@ key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=rfed.io
 
 #image=ubuntu-22-04-x64
-#image=almalinux-8-x64
 image=rockylinux-9-x64
 
 # rancher / k8s
 prefix=rke # no rke k3s
 k8s_version=v1.27 #latest
-
 
 # Carbide creds
 export CARBIDEUSER=andy-clemenko-read-token
