@@ -265,9 +265,10 @@ data:
   userinitcfg.yaml: |
     always_reload: true
     users:
-      Fullname: admin
+    - Fullname: admin
       Password: $password
       Role: admin
+      Timeout: 3600 
 EOF
 
   # clear
@@ -281,13 +282,11 @@ EOF
   # TS
   # helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set manager.svc.type=ClusterIP --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set internal.certmanager.enabled=true --set manager.env.envs[0].name=CUSTOM_PAGE_HEADER_COLOR --set manager.env.envs[0].value="#fce83a" --set manager.env.envs[1].name=CUSTOM_PAGE_HEADER_CONTENT --set manager.env.envs[1].value="VE9QIFNFQ1JFVC8vU0NJCg==" --set manager.env.envs[2].name=CUSTOM_PAGE_FOOTER_COLOR --set manager.env.envs[2].value="#fce83a" --set manager.env.envs[3].name=CUSTOM_PAGE_FOOTER_CONTENT --set manager.env.envs[3].value="VE9QIFNFQ1JFVC8vU0NJCg==" --set manager.env.envs[4].name=CUSTOM_EULA_POLICY --set manager.env.envs[4].value=$govmessage --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain > /dev/null 2>&1
 
-  until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}')" == "200" ]]; do echo -e -n .; sleep 1; done
+  until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"username": "admin", "password": "'$password'"}')" == "200" ]]; do echo -e -n .; sleep 1; done
 
-  TOKEN=$(curl -sk -H "Content-Type: application/json" https://neuvector.$domain/auth -d '{"username": "admin", "password": "admin"}' | jq  -r .token.token)
+  TOKEN=$(curl -sk -H "Content-Type: application/json" https://neuvector.$domain/auth -d '{"username": "admin", "password": "'$password'"}' | jq  -r .token.token)
 
   curl -sk -H "Content-Type: application/json" -H 'Token: '$TOKEN https://neuvector.$domain/eula -d '{"accepted":true}' > /dev/null 2>&1
-
-  curl -sk -H "Content-Type: application/json" -H 'Token: '$TOKEN -X PATCH https://neuvector.$domain/user -d '{"domain_permissions":{},"server":"","email":"","role":"admin","username":"admin","default_password":true,"password_days_until_expire":-1,"global_permissions":[{"id":"config","read":true,"write":true},{"id":"nv_resource","read":true,"write":true},{"id":"rt_scan","read":true,"write":true},{"id":"reg_scan","read":true,"write":true},{"id":"ci_scan","read":false,"write":true},{"id":"cloud","read":true,"write":true},{"id":"rt_policy","read":true,"write":true},{"id":"admctrl","read":true,"write":true},{"id":"compliance","read":true,"write":true},{"id":"audit_events","read":true,"write":false},{"id":"security_events","read":true,"write":false},{"id":"events","read":true,"write":false},{"id":"authentication","read":true,"write":true},{"id":"authorization","read":true,"write":true},{"id":"vulnerability","read":true,"write":true}],"locale":"en","fullname":"admin","token":"'$TOKEN'","timeout":300,"modify_password":false,"password":"admin","new_password":"'$password'"}' > /dev/null 2>&1
 
   echo -e "$GREEN" "ok" "$NO_COLOR"
 }
