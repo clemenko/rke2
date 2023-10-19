@@ -20,11 +20,10 @@ domain=rfed.io
 #image=ubuntu-22-04-x64
 #image=almalinux-8-x64
 image=rockylinux-9-x64
-image=centos-7-x64
 
 # rancher / k8s
 prefix=rke # no rke k3s
-k8s_version=v1.26 #latest
+k8s_version=v1.27 #latest
 
 
 # Carbide creds
@@ -35,7 +34,6 @@ export CARBIDEUSER=andy-clemenko-read-token
 export RED='\x1b[0;31m'
 export GREEN='\x1b[32m'
 export BLUE='\x1b[34m'
-export YELLOW='\x1b[33m'
 export NO_COLOR='\x1b[0m'
 export PDSH_RCMD_TYPE=ssh
 
