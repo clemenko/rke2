@@ -313,6 +313,10 @@ function demo () {
   # helm upgrade -i minio minio/minio -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=1Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain > /dev/null 2>&1
    echo -e "$GREEN""ok" "$NO_COLOR"
 
+  echo -e -n " - minio "
+  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitness.yaml  | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
+  echo -e "$GREEN""ok" "$NO_COLOR"
+
   echo -e -n " - harbor "
   # helm repo add harbor https://helm.goharbor.io --force-update
   kubectl create ns harbor > /dev/null 2>&1 
