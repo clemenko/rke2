@@ -439,7 +439,7 @@ spec:
               number: 443
 EOF
  sleep 5
- 
+
  export ROX_API_TOKEN=$(curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token)
 
  curl -ks https://stackrox.$domain/v1/cluster-init/init-bundles -H 'accept: application/json, text/plain, */*' -H "authorization: Bearer $ROX_API_TOKEN" -H 'content-type: application/json' -d '{"name":"rke2"}' |jq -r .helmValuesBundle | base64 -D > stackrox-init-bundle.yaml
@@ -448,5 +448,5 @@ EOF
 
  rm -rf stackrox-init-bundle.yaml 
 
- echo -e "$GREEN""ok" "$NO_COLOR"
+ echo -e "$GREEN"" ok" "$NO_COLOR"
 }
