@@ -403,3 +403,50 @@ function keycloak () {
   echo -e "$GREEN""ok" "$NO_COLOR"
 
 }
+
+################################ stackrox ##############################
+function rox () {
+# https://github.com/stackrox/stackrox#quick-installation-using-helm
+# helm repo add stackrox https://raw.githubusercontent.com/stackrox/helm-charts/main/opensource/ --force-update
+
+echo -e -n  " - stackrox "
+
+ helm upgrade -i stackrox-central-services stackrox/stackrox-central-services -n stackrox --create-namespace --set central.adminPassword.value="$password" --set central.resources.requests.memory=1Gi --set central.resources.limits.memory=2Gi --set central.db.resources.requests.memory=1Gi --set central.db.resources.limits.memory=2Gi --set scanner.autoscaling.disable=true --set scanner.replicas=1 --set scanner.resources.requests.memory=500Mi --set scanner.resources.limits.memory=2500Mi --set central.resources.requests.cpu=1 --set central.resources.limits.cpu=1 --set central.db.resources.requests.cpu=500m --set central.db.resources.limits.cpu=1 --set central.persistence.none=true --set central.db.persistence.persistentVolumeClaim.size=1Gi > /dev/null 2>&1
+
+#--set central.exposure.loadBalancer.enabled=true
+
+ until [ $(kubectl get pod -n stackrox |grep Running| wc -l) = 4 ] ; do echo -e -n "." ; sleep 2; done
+
+cat <<EOF | kubectl apply -f - > /dev/null 2>&1
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stackrox
+  namespace: stackrox
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+spec:
+  rules:
+  - host: stackrox.$domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: central
+            port:
+              number: 443
+EOF
+ sleep 5
+ 
+ export ROX_API_TOKEN=$(curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token)
+
+ curl -ks https://stackrox.$domain/v1/cluster-init/init-bundles -H 'accept: application/json, text/plain, */*' -H "authorization: Bearer $ROX_API_TOKEN" -H 'content-type: application/json' -d '{"name":"rke2"}' |jq -r .helmValuesBundle | base64 -D > stackrox-init-bundle.yaml
+
+ helm upgrade --install --create-namespace -n stackrox stackrox-secured-cluster-services stackrox/stackrox-secured-cluster-services -f stackrox-init-bundle.yaml --set clusterName=rke2 --set centralEndpoint="central.stackrox.svc:443" --set sensor.resources.requests.memory=500Mi --set sensor.resources.requests.cpu=500m --set sensor.resources.limits.memory=500Mi --set sensor.resources.limits.cpu=500m > /dev/null 2>&1
+
+ rm -rf stackrox-init-bundle.yaml 
+
+ echo -e "$GREEN""ok" "$NO_COLOR"
+}
