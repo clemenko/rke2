@@ -471,7 +471,7 @@ Agent:
 token: $TOKEN
 server: https://$RKE_SERVER:9345
 write-kubeconfig-mode: 0640
-profile: cis-1.6
+profile: cis-1.23
 kube-apiserver-arg:
 - authorization-mode=RBAC,Node
 kubelet-arg:
