@@ -131,7 +131,8 @@ if [ $domain = "rfed.io" ]; then
   #helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true > /dev/null 2>&1
 
   # carbide all the things - official certs
-  helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true > /dev/null 2>&1 
+  helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath  --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" > /dev/null 2>&1 
+  # --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel"
   # --version=v2.7.4
 
   else
@@ -219,7 +220,7 @@ function longhorn () {
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
 
   # non carbide
-  helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set default.storageMinimalAvailablePercentage=25 --set default.storageOverProvisioningPercentage=200  > /dev/null 2>&1  # --set defaultSettings.v2DataEngine=true --set persistence.defaultDataLocality="best-effort"
+  helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set default.storageMinimalAvailablePercentage=25 --set default.storageOverProvisioningPercentage=200 --version=v1.5.1 > /dev/null 2>&1  # --set defaultSettings.v2DataEngine=true --set persistence.defaultDataLocality="best-effort"
 
   # carbide all the things --set global.cattle.systemDefaultRegistry=rgcrprod.azurecr.us 
 
@@ -247,7 +248,6 @@ function neu () {
   # custom TLS certs
   kubectl create ns neuvector > /dev/null 2>&1 
   kubectl -n neuvector create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
-  kubectl -n neuvector create secret generic tls-ca --from-file=/Users/clemenko/Dropbox/work/rfed.me/io/cacerts.pem > /dev/null 2>&1 
 
 cat <<EOF | kubectl apply -f - > /dev/null 2>&1 
 apiVersion: v1
@@ -310,10 +310,13 @@ function demo () {
   
    echo -e -n " - minio "
    # helm repo add minio https://charts.min.io/ --force-update
-  # helm upgrade -i minio minio/minio -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=1Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain > /dev/null 2>&1
+   kubectl create ns minio > /dev/null 2>&1 
+   kubectl -n minio create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
+
+   helm upgrade -i minio minio/minio -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain --set consoleIngress.tls[0].secretName=tls-ingress --set ingress.tls[0].secretName=tls-ingress --set ingress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set consoleIngress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" > /dev/null 2>&1
    echo -e "$GREEN""ok" "$NO_COLOR"
 
-  echo -e -n " - minio "
+  echo -e -n " - gitness "
   curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitness.yaml  | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
 
@@ -321,7 +324,7 @@ function demo () {
   # helm repo add harbor https://helm.goharbor.io --force-update
   kubectl create ns harbor > /dev/null 2>&1 
   kubectl -n harbor create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
-  kubectl -n harbor create secret generic tls-ca --from-file=/Users/clemenko/Dropbox/work/rfed.me/io/cacerts.pem > /dev/null 2>&1 
+
   helm upgrade -i harbor harbor/harbor -n harbor --create-namespace --set expose.tls.certSource=secret --set expose.tls.secret.secretName=tls-ingress --set expose.tls.enabled=false --set expose.tls.auto.commonName=harbor.$domain --set expose.ingress.hosts.core=harbor.$domain --set persistence.enabled=false --set harborAdminPassword=$password --set externalURL=http://harbor.$domain --set notary.enabled=false > /dev/null 2>&1;
   echo -e "$GREEN""ok" "$NO_COLOR"
 
