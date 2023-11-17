@@ -220,7 +220,7 @@ function longhorn () {
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
 
   # non carbide
-  helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set default.storageMinimalAvailablePercentage=25 --set default.storageOverProvisioningPercentage=200 --version=v1.5.1 > /dev/null 2>&1  # --set defaultSettings.v2DataEngine=true --set persistence.defaultDataLocality="best-effort"
+  helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set default.storageMinimalAvailablePercentage=25 --set default.storageOverProvisioningPercentage=200 > /dev/null 2>&1  # --set defaultSettings.v2DataEngine=true --set persistence.defaultDataLocality="best-effort"
 
   # carbide all the things --set global.cattle.systemDefaultRegistry=rgcrprod.azurecr.us 
 

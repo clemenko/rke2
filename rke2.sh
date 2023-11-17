@@ -49,6 +49,9 @@ function dolist () { doctl compute droplet list --no-header|grep $prefix |sort -
 
 source functions.sh
 
+# update helm
+helm repo update > /dev/null 2>&1
+
 ################################# up ################################
 function up () {
 build_list=""
