@@ -118,7 +118,6 @@ function rancher () {
   
   echo -e -n " - helm - rancher "
 
-if [ $domain = "rfed.io" ]; then 
   # custom TLS certs
   kubectl create ns cattle-system > /dev/null 2>&1 
   # kubectl -n cattle-system create secret tls tls-rancher-ingress --cert=tls.crt --key=tls.key
@@ -134,12 +133,6 @@ if [ $domain = "rfed.io" ]; then
   helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath  --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" > /dev/null 2>&1 
   # --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel"
   # --version=v2.7.4
-
-  else
-   # self signed certs
-    helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" --set systemDefaultRegistry=rgcrprod.azurecr.us > /dev/null 2>&1 
-
-  fi
  
   echo -e "$GREEN" "ok" "$NO_COLOR"
 
