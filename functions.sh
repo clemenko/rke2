@@ -450,3 +450,9 @@ EOF
 
  echo -e "$GREEN"" ok" "$NO_COLOR"
 }
+
+
+# PSA notes
+# kubectl label ns spark pod-security.kubernetes.io/audit=privileged
+# kubectl label ns spark pod-security.kubernetes.io/enforce=privileged
+# kubectl label ns spark pod-security.kubernetes.io/warn=privileged
