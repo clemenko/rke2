@@ -291,6 +291,16 @@ function fleet () {
   echo -e "$GREEN""ok" "$NO_COLOR"
 }
 
+############################# nats ################################
+function nats () {
+  echo -e -n " nats demo "
+  kubectl create ns kubecon > /dev/null 2>&1
+  kubectl -n kubecon create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1
+
+  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/kubecon23.yaml > /dev/null 2>&1
+  echo -e "$GREEN""ok" "$NO_COLOR"
+}
+
 ############################# demo ################################
 function demo () {
   echo -e " demo-ing "

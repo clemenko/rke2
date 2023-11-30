@@ -188,5 +188,6 @@ case "$1" in
         demo) demo;;
         fleet) fleet;;
         rox) rox;;
+        nats) nats;;
         *) usage;;
 esac
