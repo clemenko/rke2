@@ -287,6 +287,11 @@ EOF
 ############################# fleet ################################
 function fleet () {
   echo -e -n " fleet-ing "
+  # for downstream clusters
+  kubectl create secret -n cattle-global-data generic awscred --from-literal=amazonec2credentialConfig-defaultRegion=us-east-1 --from-literal=amazonec2credentialConfig-accessKey=${AWS_ACCESS_KEY} --from-literal=amazonec2credentialConfig-secretKey=${AWS_SECRET_KEY}  > /dev/null 2>&1
+
+  kubectl create secret -n fleet-default generic --type kubernetes.io/basic-auth carbidecredential --from-literal=username=andy-clemenko-read-token --from-literal=password=${CARBIDEPASS} > /dev/null 2>&1
+
   kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
 }
