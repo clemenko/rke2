@@ -170,7 +170,7 @@ EOF
   echo -e -n " - adding Carbide "
 
   # add offline docs
-  helm upgrade -i airgapped-docs carbide-charts/airgapped-docs -n carbide-docs --create-namespace > /dev/null 2>&1
+  helm upgrade -i airgapped-docs carbide-charts/airgapped-docs -n carbide-docs-system --create-namespace > /dev/null 2>&1
 
   kubectl create namespace carbide-stigatron-system > /dev/null 2>&1
   kubectl create secret generic stigatron-license -n carbide-stigatron-system --from-literal=license=$CARBIDELIC > /dev/null 2>&1 
@@ -182,10 +182,10 @@ EOF
   curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"catalog.cattle.io.clusterrepo","metadata":{"name":"rancher-ui-plugins"},"spec":{"gitBranch":"main","gitRepo":"https://github.com/rancher/ui-plugin-charts"}}' > /dev/null 2>&1
   
   # add extension
-  curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator","version":"102.0.0+up0.2.0","releaseName":"ui-plugin-operator","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
+  curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator","version":"103.0.1+up0.2.1","releaseName":"ui-plugin-operator","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
 
   # add extension
-  curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator-crd","version":"102.0.0+up0.2.0","releaseName":"ui-plugin-operator-crd","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
+  curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator-crd","version":"103.0.1+up0.2.1","releaseName":"ui-plugin-operator-crd","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
 
   sleep 15
 
