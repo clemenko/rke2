@@ -181,6 +181,8 @@ EOF
   # enable extension
   curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"catalog.cattle.io.clusterrepo","metadata":{"name":"rancher-ui-plugins"},"spec":{"gitBranch":"main","gitRepo":"https://github.com/rancher/ui-plugin-charts"}}' > /dev/null 2>&1
   
+  sleep 15
+  
   # add extension
   curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator","version":"103.0.1+up0.2.1","releaseName":"ui-plugin-operator","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
 
@@ -190,7 +192,7 @@ EOF
   sleep 15
 
   # add sigatron-ui
-  helm install -n carbide-stigatron-system --create-namespace stigatron-ui carbide-charts/stigatron-ui  > /dev/null 2>&1 #--set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE"
+  helm install -n carbide-stigatron-system --create-namespace stigatron-ui carbide-charts/stigatron-ui > /dev/null 2>&1 #--set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE"
 
   sleep 15
 
