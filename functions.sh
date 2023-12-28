@@ -130,7 +130,7 @@ function rancher () {
   #helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true > /dev/null 2>&1
 
   # carbide all the things - official certs
-  helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath  --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" > /dev/null 2>&1 
+  helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath  --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" --version=v2.7.9 > /dev/null 2>&1 
   # --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel"
   # --version=v2.7.4
  
@@ -293,6 +293,8 @@ function fleet () {
   kubectl create secret -n cattle-global-data generic awscred --from-literal=amazonec2credentialConfig-defaultRegion=us-east-1 --from-literal=amazonec2credentialConfig-accessKey=${AWS_ACCESS_KEY} --from-literal=amazonec2credentialConfig-secretKey=${AWS_SECRET_KEY}  > /dev/null 2>&1
 
   kubectl create secret -n fleet-default generic --type kubernetes.io/basic-auth carbidecredential --from-literal=username=andy-clemenko-read-token --from-literal=password=${CARBIDEPASS} > /dev/null 2>&1
+
+  kubectl create secret -n cattle-global-data generic docreds --from-literal=digitaloceancredentialConfig-accessToken=${DO_TOKEN} > /dev/null 2>&1
 
   kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
