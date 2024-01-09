@@ -433,7 +433,7 @@ function rox () {
 
 echo -e -n  " - stackrox "
 
- helm upgrade -i stackrox-central-services stackrox/stackrox-central-services -n stackrox --create-namespace --set central.adminPassword.value="$password" --set central.resources.requests.memory=1Gi --set central.resources.limits.memory=2Gi --set central.db.resources.requests.memory=1Gi --set central.db.resources.limits.memory=2Gi --set scanner.autoscaling.disable=true --set scanner.replicas=1 --set scanner.resources.requests.memory=500Mi --set scanner.resources.limits.memory=2500Mi --set central.resources.requests.cpu=1 --set central.resources.limits.cpu=1 --set central.db.resources.requests.cpu=500m --set central.db.resources.limits.cpu=1 --set central.persistence.none=true --set central.db.persistence.persistentVolumeClaim.size=1Gi > /dev/null 2>&1
+ helm upgrade -i stackrox-central-services stackrox/stackrox-central-services -n stackrox --create-namespace --set central.adminPassword.value=$password --set central.resources.requests.memory=1Gi --set central.resources.limits.memory=2Gi --set central.db.resources.requests.memory=1Gi --set central.db.resources.limits.memory=2Gi --set scanner.autoscaling.disable=true --set scanner.replicas=1 --set scanner.resources.requests.memory=500Mi --set scanner.resources.limits.memory=2500Mi --set central.resources.requests.cpu=1 --set central.resources.limits.cpu=1 --set central.db.resources.requests.cpu=500m --set central.db.resources.limits.cpu=1 --set central.persistence.none=true --set central.db.persistence.persistentVolumeClaim.size=1Gi > /dev/null 2>&1
 
 #--set central.exposure.loadBalancer.enabled=true
 
