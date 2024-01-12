@@ -67,12 +67,12 @@ fi
 for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 
 #build VMS
-echo -e -n " building vms -$build_list"
+echo -e -n " - building vms -$build_list"
 doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --wait --droplet-agent=false > /dev/null 2>&1
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
 #check for SSH
-echo -e -n " checking for ssh "
+echo -e -n " - checking for ssh "
 for ext in $(dolist | awk '{print $3}'); do
   until [ $(ssh -o ConnectTimeout=1 root@$ext 'exit' 2>&1 | grep 'timed out\|refused' | wc -l) = 0 ]; do echo -e -n "." ; sleep 5; done
 done
@@ -84,7 +84,7 @@ server=$(dolist | sed -n 1p | awk '{print $3}')
 worker_list=$(dolist | sed 1d | awk '{printf $3","}' | sed 's/,$//')
 
 #update DNS
-echo -e -n " updating dns"
+echo -e -n " - updating dns"
 doctl compute domain records create $domain --record-type A --record-name $prefix --record-ttl 60 --record-data $server > /dev/null 2>&1
 doctl compute domain records create $domain --record-type CNAME --record-name "*" --record-ttl 60 --record-data $prefix.$domain. > /dev/null 2>&1
 echo -e "$GREEN" "ok" "$NO_COLOR"
@@ -93,7 +93,7 @@ sleep 10
 
 #host modifications
 if [[ "$image" = *"ubuntu"* ]]; then
-  echo -e -n " adding os packages"
+  echo -e -n " - adding os packages"
   pdsh -l root -w $host_list 'mkdir -p /opt/kube; systemctl stop ufw; systemctl disable ufw; echo -e "PubkeyAcceptedKeyTypes=+ssh-rsa" >> /etc/ssh/sshd_config; systemctl restart sshd; export DEBIAN_FRONTEND=noninteractive; apt update; apt install nfs-common -y;  #apt upgrade -y; apt autoremove -y' > /dev/null 2>&1
   echo -e "$GREEN" "ok" "$NO_COLOR"
 fi
@@ -111,7 +111,7 @@ if [ "$prefix" != k3s ] && [ "$prefix" != rke ]; then exit; fi
 carbide_reg
 
 if [ "$prefix" = k3s ]; then
-  echo -e -n " deploying k3s"
+  echo -e -n " - deploying k3s"
   k3sup install --ip $server --user root --cluster --k3s-extra-args '' --k3s-channel $k8s_version --local-path ~/.kube/config > /dev/null 2>&1
   # --k3s-extra-args '--disable traefik'
 
