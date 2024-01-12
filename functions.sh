@@ -24,7 +24,7 @@ function usage () {
 ############################# os_packages ################################
 function centos_packages () {
 # adding centos packages.
-echo -e -n " adding os packages"
+echo -e -n " - adding os packages"
 pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl enable --now iscsid; #yum update -y' > /dev/null 2>&1
 echo -e "$GREEN" "ok" "$NO_COLOR"
 }
@@ -32,7 +32,7 @@ echo -e "$GREEN" "ok" "$NO_COLOR"
 ############################# carbide_reg ################################
 function carbide_reg () {
 # adding carbide reg
-echo -e -n " adding carbide reg"
+echo -e -n " - adding carbide reg"
 pdsh -l root -w $host_list 'mkdir -p /etc/rancher/{rke2,k3s}/; echo -e "mirrors:\n  rgcrprod.azurecr.us:\n    endpoint:\n      - https://rgcrprod.azurecr.us\nconfigs:\n  rgcrprod.azurecr.us:\n    auth:\n      username: "'$CARBIDEUSER'"\n      password: "'$CARBIDEPASS'"" > /etc/rancher/rke2/registries.yaml; rsync -avP /etc/rancher/rke2/registries.yaml /etc/rancher/k3s/' > /dev/null 2>&1
 echo -e "$GREEN" "ok" "$NO_COLOR"
 }
@@ -40,7 +40,7 @@ echo -e "$GREEN" "ok" "$NO_COLOR"
 ############################# kernel ################################
 function kernel () {
 #kernel tuning
-echo -e -n " updating kernel settings"
+echo -e -n " - updating kernel settings"
 pdsh -l root -w $host_list 'cat << EOF >> /etc/sysctl.conf
 # SWAP settings
 vm.swappiness=0
