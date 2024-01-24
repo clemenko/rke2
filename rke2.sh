@@ -185,7 +185,7 @@ case "$1" in
         dolist) dolist;;
         keycloak) keycloak;;
         longhorn) longhorn;;
-        rancher) rancher && longhorn && neu;;
+        rancher) rancher && neu;;
         demo) demo;;
         fleet) fleet;;
         rox) rox;;
