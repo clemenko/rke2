@@ -409,8 +409,23 @@ function keycloak () {
 
   curl -sk -X POST https://$KEY_URL/admin/realms/rancher/clients/$client_id/protocol-mappers/models -H "authorization: Bearer $key_token" -H 'accept: application/json, text/plain, */*' -H 'content-type: application/json;charset=UTF-8' -d '{"protocol":"openid-connect","config":{"full.path":"true","id.token.claim":"true","access.token.claim":"true","userinfo.token.claim":"true","claim.name":"full_group_path"},"name":"Group Path","protocolMapper":"oidc-group-membership-mapper"}'
 
+  # add realm-managementview-users	
+  # get role id
+  # role_ID=$(curl -sk -X GET https://$KEY_URL/admin/realms/rancher/roles -H "authorization: Bearer $key_token" | jq -r '.[]  | select(.name=="default-roles-rancher") | .id')
+  
+  # curl -sk https://$KEY_URL/admin/realms/rancher/roles-by-id/$role_ID/composites -H "authorization: Bearer $key_token"  -d '[{"id":"d8ef39c5-c8b6-4bcc-8010-7244b7e5cf4a","name":"view-users","description":"${role_view-users}"}]'
+
+  # add groups admin / dev
+  curl -k https://$KEY_URL/admin/realms/rancher/groups -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"name":"devs"}'
+ 
+  curl -k https://$KEY_URL/admin/realms/rancher/groups -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"name":"admins"}'
+
+ 
   # add keycloak user clemenko / Pa22word
-  curl -k 'https://'$KEY_URL'/admin/realms/rancher/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":[],"credentials":[{"type":"password","value":"'$password'","temporary":false}],"username":"clemenko","emailVerified":"","firstName":"Andy","lastName":"Clemenko"}' 
+  curl -k 'https://'$KEY_URL'/admin/realms/rancher/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":["/devs"],"credentials":[{"type":"password","value":"'$password'","temporary":false}],"username":"clemenko","emailVerified":"","firstName":"Andy","lastName":"Clemenko"}' 
+
+  # add keycloak user admin / Pa22word
+  curl -k 'https://'$KEY_URL'/admin/realms/rancher/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":["/admins", "/devs"],"credentials":[{"type":"password","value":"'$password'","temporary":false}],"username":"admin","emailVerified":"","firstName":"Admin","lastName":"Clemenko"}' 
 
   echo -e "$GREEN""ok" "$NO_COLOR"
 
@@ -421,6 +436,8 @@ function keycloak () {
   api_token=$(curl -sk https://$RANCHER_URL/v3/token -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"token","description":"automation"}' | jq -r .token)
 
   curl -sk -X PUT https://$RANCHER_URL/v3/keyCloakOIDCConfigs/keycloakoidc?action=testAndEnable -H 'accept: application/json' -H 'accept-language: en-US,en;q=0.9' -H 'content-type: application/json;charset=UTF-8' -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"enabled":true,"id":"keycloakoidc","name":"keycloakoidc","type":"keyCloakOIDCConfig","accessMode":"unrestricted","rancherUrl":"https://rancher.'$domain'/verify-auth","scope":"openid profile email","clientId":"rancher","clientSecret":"'$client_secret'","issuer":"https://keycloak.'$domain'/realms/rancher","authEndpoint":"https://'$KEY_URL'/realms/rancher/protocol/openid-connect/auth/"}' > /dev/null 2>&1
+
+  # login with keycloak user - manual
 
   echo -e "$GREEN""ok" "$NO_COLOR"
 
