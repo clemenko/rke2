@@ -303,6 +303,12 @@ EOF
   curl -sk -H "Content-Type: application/json" -H 'Token: '$TOKEN https://neuvector.$domain/eula -d '{"accepted":true}' > /dev/null 2>&1
 
   echo -e "$GREEN" "ok" "$NO_COLOR"
+
+ # federation managed
+ # helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set manager.svc.type=ClusterIP --set manager.ingress.enabled=true --set manager.ingress.host=neuvector2.rfed.io --set manager.ingress.tls=true --set manager.ingress.secretName=tls-ingress --set controller.federation.managedsvc.ingress.enabled=true --set controller.federation.managedsvc.ingress.host=nv-down1.rfed.io --set controller.federation.managedsvc.ingress.tls=true --set controller.federation.managedsvc.ingress.secretName=tls-ingress --set controller.federation.managedsvc.type=ClusterIP
+
+ # https://gist.github.com/clemenko/385d6ce697e1f7a4601dbfc24d9a87e2
+ 
 }
 
 ############################# fleet ################################
