@@ -34,6 +34,7 @@ export CARBIDEUSER=andy-clemenko-read-token
 export RED='\x1b[0;31m'
 export GREEN='\x1b[32m'
 export BLUE='\x1b[34m'
+export YELLOW='\x1b[33m'
 export NO_COLOR='\x1b[0m'
 export PDSH_RCMD_TYPE=ssh
 
