@@ -17,8 +17,8 @@ size=s-4vcpu-8gb-amd
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=rfed.io
 
-image=ubuntu-22-04-x64
-#image=rockylinux-9-x64
+#image=ubuntu-22-04-x64
+image=rockylinux-9-x64
 
 # rancher / k8s
 prefix=rke # no rke k3s
@@ -26,6 +26,7 @@ k8s_version=v1.27 #latest
 # curl -s https://update.rke2.io/v1-release/channels | jq '.data[] | select(.id=="stable") | .latest'
 
 # Carbide creds
+export CARBIDE=false # or true to enable carbide
 export CARBIDEUSER=andy-clemenko-read-token
 #export CARBIDEPASS=  # set on the command line
 

@@ -133,14 +133,19 @@ function rancher () {
   kubectl -n cattle-system create secret generic tls-ca --from-file=/Users/clemenko/Dropbox/work/rfed.me/io/cacerts.pem > /dev/null 2>&1 
   # kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=cacerts.pem
 
-  # non carbide
-  #helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true > /dev/null 2>&1
+  if [ $CARBIDE == true ]; then
+    # carbide all the things - official certs
+    helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath  --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" > /dev/null 2>&1 
+    # --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel"
+    # --version=v2.7.4
+    
+  else
 
-  # carbide all the things - official certs
-  helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath  --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" > /dev/null 2>&1 
-  # --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel"
-  # --version=v2.7.4
- 
+    # non carbide
+    helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true > /dev/null 2>&1
+    
+  fi 
+
   echo -e "$GREEN" "ok" "$NO_COLOR"
 
   # wait for rancher
@@ -182,43 +187,46 @@ metadata:
 value: '{"bannerHeader":{"background":"#007a33","color":"#ffffff","textAlignment":"center","fontWeight":null,"fontStyle":null,"fontSize":"14px","textDecoration":null,"text":"UNCLASSIFIED//FOUO"},"bannerFooter":{"background":"#007a33","color":"#ffffff","textAlignment":"center","fontWeight":null,"fontStyle":null,"fontSize":"14px","textDecoration":null,"text":"UNCLASSIFIED//FOUO"},"bannerConsent":{"background":"#ffffff","color":"#000000","textAlignment":"left","fontWeight":null,"fontStyle":null,"fontSize":"14px","textDecoration":false,"text":"$govmessage","button":"Accept"},"showHeader":"true","showFooter":"true","showConsent":"true"}'
 EOF
 
-  # carbide
-  echo -e -n " - adding Carbide "
+ if [ $CARBIDE == true ]; then
+    # carbide
+    echo -e -n " - adding Carbide "
 
-  # add offline docs
-  helm upgrade -i airgapped-docs carbide-charts/airgapped-docs -n carbide-docs-system --create-namespace > /dev/null 2>&1
+    # add offline docs
+    helm upgrade -i airgapped-docs carbide-charts/airgapped-docs -n carbide-docs-system --create-namespace > /dev/null 2>&1
 
-  kubectl create namespace carbide-stigatron-system > /dev/null 2>&1
-  kubectl create secret generic stigatron-license -n carbide-stigatron-system --from-literal=license=$CARBIDELIC > /dev/null 2>&1 
-  #--set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE"
+    kubectl create namespace carbide-stigatron-system > /dev/null 2>&1
+    kubectl create secret generic stigatron-license -n carbide-stigatron-system --from-literal=license=$CARBIDELIC > /dev/null 2>&1 
+    #--set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE"
 
-  token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"'$password'"}' | jq -r .token)
+    token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"'$password'"}' | jq -r .token)
 
-  # enable extension
-  curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"catalog.cattle.io.clusterrepo","metadata":{"name":"rancher-ui-plugins"},"spec":{"gitBranch":"main","gitRepo":"https://github.com/rancher/ui-plugin-charts"}}' > /dev/null 2>&1
-  
-  sleep 15
-  
-  # add extension
-  curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator","version":"103.0.1+up0.2.1","releaseName":"ui-plugin-operator","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
+    # enable extension
+    curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"catalog.cattle.io.clusterrepo","metadata":{"name":"rancher-ui-plugins"},"spec":{"gitBranch":"main","gitRepo":"https://github.com/rancher/ui-plugin-charts"}}' > /dev/null 2>&1
+    
+    sleep 15
+    
+    # add extension
+    curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator","version":"103.0.1+up0.2.1","releaseName":"ui-plugin-operator","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
 
-  # add extension
-  curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator-crd","version":"103.0.1+up0.2.1","releaseName":"ui-plugin-operator-crd","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
+    # add extension
+    curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator-crd","version":"103.0.1+up0.2.1","releaseName":"ui-plugin-operator-crd","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
 
-  sleep 15
+    sleep 15
 
-  # add sigatron-ui
-  helm install -n carbide-stigatron-system --create-namespace stigatron-ui carbide-charts/stigatron-ui > /dev/null 2>&1 #--set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE"
+    # add sigatron-ui
+    helm install -n carbide-stigatron-system --create-namespace stigatron-ui carbide-charts/stigatron-ui > /dev/null 2>&1 #--set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE"
 
-  sleep 15
+    sleep 15
 
-  # cis benchmarks
-  curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"rancher-cis-benchmark-crd","version":"4.0.0","releaseName":"rancher-cis-benchmark-crd","projectId":null,"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us","clusterId":"local","clusterName":"local","systemProjectId":"p-rs4pl","url":"https://rancher.'$domain'","rkePathPrefix":"","rkeWindowsPathPrefix":""},"systemDefaultRegistry":"rgcrprod.azurecr.us"}}},{"chartName":"rancher-cis-benchmark","version":"4.0.0","releaseName":"rancher-cis-benchmark","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us","clusterId":"local","clusterName":"local","systemProjectId":"p-rs4pl","url":"https://rancher.'$domain'","rkePathPrefix":"","rkeWindowsPathPrefix":""},"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}],"noHooks":false,"timeout":"600s","wait":true,"namespace":"cis-operator-system","projectId":null,"disableOpenAPIValidation":false,"skipCRDs":false}' > /dev/null 2>&1
+    # cis benchmarks
+    curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"rancher-cis-benchmark-crd","version":"4.0.0","releaseName":"rancher-cis-benchmark-crd","projectId":null,"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us","clusterId":"local","clusterName":"local","systemProjectId":"p-rs4pl","url":"https://rancher.'$domain'","rkePathPrefix":"","rkeWindowsPathPrefix":""},"systemDefaultRegistry":"rgcrprod.azurecr.us"}}},{"chartName":"rancher-cis-benchmark","version":"4.0.0","releaseName":"rancher-cis-benchmark","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us","clusterId":"local","clusterName":"local","systemProjectId":"p-rs4pl","url":"https://rancher.'$domain'","rkePathPrefix":"","rkeWindowsPathPrefix":""},"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}],"noHooks":false,"timeout":"600s","wait":true,"namespace":"cis-operator-system","projectId":null,"disableOpenAPIValidation":false,"skipCRDs":false}' > /dev/null 2>&1
 
-  sleep 15
+    sleep 15
 
-  # add stigatron operator
-  helm install -n carbide-stigatron-system stigatron carbide-charts/stigatron  > /dev/null 2>&1 # --set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE" --set "heimdall2.global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE" 
+    # add stigatron operator
+    helm install -n carbide-stigatron-system stigatron carbide-charts/stigatron  > /dev/null 2>&1 # --set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE" --set "heimdall2.global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE" 
+
+  fi
 
   echo -e "$GREEN" "ok" "$NO_COLOR"
 }
@@ -368,8 +376,7 @@ function demo () {
   echo -e "$GREEN""ok" "$NO_COLOR"
 
   echo -e -n " - gitea "
-  # helm repo add gitea-charts https://dl.gitea.io/charts/ --force-update
-  helm upgrade -i gitea gitea-charts/gitea -n gitea --create-namespace --set gitea.admin.password=$password --set gitea.admin.username=gitea --set persistence.size=500Mi --set ingress.enabled=true --set ingress.hosts[0].host=git.$domain --set ingress.hosts[0].paths[0].path=/ --set ingress.hosts[0].paths[0].pathType=Prefix --set gitea.config.server.ROOT_URL=http://git.$domain --set gitea.config.server.DOMAIN=git.$domain --set postgresql-ha.enabled=false --set redis-cluster.enabled=false --set gitea.config.database.DB_TYPE=sqlite3 --set gitea.config.session.PROVIDER=memory  --set gitea.config.cache.ADAPTER=memory --set gitea.config.queue.TYPE=level > /dev/null 2>&1
+  helm upgrade -i gitea oci://registry-1.docker.io/giteacharts/gitea -n gitea --create-namespace --set gitea.admin.password=$password --set gitea.admin.username=gitea --set persistence.size=500Mi --set ingress.enabled=true --set ingress.hosts[0].host=git.$domain --set ingress.hosts[0].paths[0].path=/ --set ingress.hosts[0].paths[0].pathType=Prefix --set gitea.config.server.ROOT_URL=http://git.$domain --set gitea.config.server.DOMAIN=git.$domain --set postgresql-ha.enabled=false --set redis-cluster.enabled=false --set gitea.config.database.DB_TYPE=sqlite3 --set gitea.config.session.PROVIDER=memory  --set gitea.config.cache.ADAPTER=memory --set gitea.config.queue.TYPE=level > /dev/null 2>&1
 
   # mirror github
   until [ $(curl -s http://git.$domain/explore/repos| grep "<title>" | wc -l) = 1 ]; do sleep 2; echo -n "."; done
