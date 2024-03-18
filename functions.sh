@@ -214,7 +214,7 @@ EOF
     sleep 15
 
     # add sigatron-ui
-    helm install -n carbide-stigatron-system --create-namespace stigatron-ui carbide-charts/stigatron-ui > /dev/null 2>&1 #--set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE"
+    helm upgrade -i -n carbide-stigatron-system --create-namespace stigatron-ui carbide-charts/stigatron-ui > /dev/null 2>&1 #--set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE"
 
     sleep 15
 
@@ -224,7 +224,7 @@ EOF
     sleep 15
 
     # add stigatron operator
-    helm install -n carbide-stigatron-system stigatron carbide-charts/stigatron  > /dev/null 2>&1 # --set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE" --set "heimdall2.global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE" 
+    helm upgrade -i -n carbide-stigatron-system stigatron carbide-charts/stigatron  > /dev/null 2>&1 # --set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE" --set "heimdall2.global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE" 
 
   fi
 
