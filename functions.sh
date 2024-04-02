@@ -135,13 +135,13 @@ function rancher () {
 
   if [ $CARBIDE == true ]; then
     # carbide all the things - official certs
-    helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath  --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" > /dev/null 2>&1 
+    helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set "carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel" > /dev/null 2>&1 
     # --version=v2.7.4
     
   else
 
     # non carbide
-    helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true > /dev/null 2>&1
+    helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true > /dev/null 2>&1
     
   fi 
 
