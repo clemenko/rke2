@@ -140,9 +140,6 @@ if [ "$prefix" = rke ]; then
 
 # INSTALL_RKE2_VERSION=v1.24.4+rke2r1
 
-# for CIS
-#  cp -f /usr/local/share/rke2/rke2-cis-sysctl.conf /etc/sysctl.d/60-rke2-cis.conf; systemctl restart systemd-sysctl;
-
   sleep 15
 
   pdsh -l root -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$k8s_version' INSTALL_RKE2_TYPE=agent sh - && echo -e "selinux: true\nserver: https://"'$server'":9345\ntoken: bootstrapAllTheThings\nwrite-kubeconfig-mode: 0600\nprofile: cis-1.23\nkube-apiserver-arg:\n- authorization-mode=RBAC,Node\nkubelet-arg:\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook" > /etc/rancher/rke2/config.yaml; systemctl enable --now rke2-agent.service' > /dev/null 2>&1
