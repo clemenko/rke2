@@ -22,7 +22,7 @@ image=rockylinux-9-x64
 
 # rancher / k8s
 prefix=rke # no rke k3s
-k8s_version=v1.27 #latest
+k8s_version=v1.28 #latest
 # curl -s https://update.rke2.io/v1-release/channels | jq '.data[] | select(.id=="stable") | .latest'
 
 # Carbide creds
