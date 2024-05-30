@@ -5,7 +5,7 @@ Simply go to https://public.cyber.mil/stigs/downloads/ and search for `rancher`.
 Direct Downloads
 
 - https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_RGS_MCM_V1R3_STIG.zip
-- https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_RGS_RKE2_V1R4_STIG.zip
+- https://dl.dod.cyber.mil/wp-content/uploads/stigs/zip/U_RGS_RKE2_V1R5_STIG.zip
 - https://public.cyber.mil/stigs/srg-stig-tools/
 
 ## RKE2 STIG tl:dr
