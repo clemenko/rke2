@@ -358,7 +358,7 @@ function demo () {
   echo -e "$GREEN""ok" "$NO_COLOR"
 
   echo -e -n " - gitea "
-  helm upgrade -i gitea oci://registry-1.docker.io/giteacharts/gitea -n gitea --create-namespace --set gitea.admin.password=$password --set gitea.admin.username=gitea --set persistence.size=500Mi --set ingress.enabled=true --set ingress.hosts[0].host=git.$domain --set ingress.hosts[0].paths[0].path=/ --set ingress.hosts[0].paths[0].pathType=Prefix --set gitea.config.server.ROOT_URL=http://git.$domain --set gitea.config.server.DOMAIN=git.$domain --set postgresql-ha.enabled=false --set redis-cluster.enabled=false --set gitea.config.database.DB_TYPE=sqlite3 --set gitea.config.session.PROVIDER=memory  --set gitea.config.cache.ADAPTER=memory --set gitea.config.queue.TYPE=level > /dev/null 2>&1
+  helm upgrade -i gitea oci://registry-1.docker.io/giteacharts/gitea -n gitea --create-namespace --set gitea.admin.password=$password --set gitea.admin.username=gitea --set persistence.size=500Mi --set ingress.enabled=true --set ingress.hosts[0].host=git.$domain --set ingress.hosts[0].paths[0].path=/ --set ingress.hosts[0].paths[0].pathType=Prefix --set gitea.config.server.DOMAIN=git.$domain --set postgresql-ha.enabled=false --set redis-cluster.enabled=false --set gitea.config.database.DB_TYPE=sqlite3 --set gitea.config.session.PROVIDER=memory  --set gitea.config.cache.ADAPTER=memory --set gitea.config.queue.TYPE=level > /dev/null 2>&1
 
   # mirror github
   until [ $(curl -s http://git.$domain/explore/repos| grep "<title>" | wc -l) = 1 ]; do sleep 2; echo -n "."; done
