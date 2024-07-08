@@ -225,7 +225,7 @@ function longhorn () {
   sleep 5
 
   #wait for longhorn to initiaize
-  until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ] && [ "$(kubectl get pod -n longhorn-system | wc -l)" -gt 20 ] ; do echo -e -n "." ; sleep 2; done
+  until [ $(kubectl get pod -n longhorn-system | grep -v 'Running\|NAME' | wc -l) = 0 ] && [ "$(kubectl get pod -n longhorn-system | wc -l)" -gt 19 ] ; do echo -e -n "." ; sleep 2; done
   # testing out ` kubectl wait --for condition=containersready -n longhorn-system pod --all`
 
   kubectl patch storageclass longhorn -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1
