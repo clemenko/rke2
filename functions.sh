@@ -99,7 +99,7 @@ function rancher () {
   #helm repo add jetstack https://charts.jetstack.io --force-update > /dev/null 2>&1
 
   echo -e -n " - helm - cert-manager "
-  helm upgrade -i cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set installCRDs=true > /dev/null 2>&1 
+  helm upgrade -i cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set crds.enabled=true > /dev/null 2>&1 
   
   echo -e "$GREEN" "ok" "$NO_COLOR"
   
