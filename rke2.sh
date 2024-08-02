@@ -144,7 +144,7 @@ if [ "$prefix" = rke ]; then
 
   sleep 15
 
-  pdsh -l root -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$k8s_version' INSTALL_RKE2_TYPE=agent sh - && echo -e "selinux: true\nserver: https://"'$server'":9345\ntoken: bootstrapAllTheThings\nwrite-kubeconfig-mode: 0600\nprofile: cis-1.23\nkube-apiserver-arg:\n- authorization-mode=RBAC,Node\nkubelet-arg:\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook" > /etc/rancher/rke2/config.yaml; systemctl enable --now rke2-agent.service' > /dev/null 2>&1
+  pdsh -l root -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$k8s_version' INSTALL_RKE2_TYPE=agent sh - && echo -e "selinux: true\nserver: https://"'$server'":9345\ntoken: bootstrapAllTheThings\nwrite-kubeconfig-mode: 0600\nprofile: cis\nkube-apiserver-arg:\n- authorization-mode=RBAC,Node\nkubelet-arg:\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook" > /etc/rancher/rke2/config.yaml; systemctl enable --now rke2-agent.service' > /dev/null 2>&1
 
   ssh root@$server cat /etc/rancher/rke2/rke2.yaml | sed -e "s/127.0.0.1/$server/g" > ~/.kube/config 
   chmod 0600 ~/.kube/config
