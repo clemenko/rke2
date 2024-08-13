@@ -38,6 +38,7 @@ echo -e "$GREEN" "ok" "$NO_COLOR"
 
 ############################# carbide_reg ################################
 function carbide_reg () {
+# hauler login rgcrprod.azurecr.us -u andy-clemenko-read-token -p $CARBIDEPASS
 # adding carbide reg
 echo -e -n " - adding carbide reg"
 pdsh -l root -w $host_list 'mkdir -p /etc/rancher/{rke2,k3s}/; echo -e "mirrors:\n  rgcrprod.azurecr.us:\n    endpoint:\n      - https://rgcrprod.azurecr.us\nconfigs:\n  rgcrprod.azurecr.us:\n    auth:\n      username: "'$CARBIDEUSER'"\n      password: "'$CARBIDEPASS'"" > /etc/rancher/rke2/registries.yaml; rsync -avP /etc/rancher/rke2/registries.yaml /etc/rancher/k3s/' > /dev/null 2>&1
@@ -62,15 +63,15 @@ net.ipv4.tcp_tw_reuse=1
 net.ipv4.tcp_fin_timeout=15
 net.core.somaxconn=4096
 net.core.netdev_max_backlog=4096
-net.core.rmem_max=16777216
-net.core.wmem_max=16777216
+net.core.rmem_max=536870912
+net.core.wmem_max=536870912
 net.ipv4.tcp_max_syn_backlog=20480
 net.ipv4.tcp_max_tw_buckets=400000
 net.ipv4.tcp_no_metrics_save=1
-net.ipv4.tcp_rmem=4096 87380 16777216
+net.ipv4.tcp_rmem=4096 87380 268435456
+net.ipv4.tcp_wmem=4096 87380 268435456
 net.ipv4.tcp_syn_retries=2
 net.ipv4.tcp_synack_retries=2
-net.ipv4.tcp_wmem=4096 65536 16777216
 net.ipv4.neigh.default.gc_thresh1=8096
 net.ipv4.neigh.default.gc_thresh2=12288
 net.ipv4.neigh.default.gc_thresh3=16384
