@@ -122,7 +122,7 @@ function rancher () {
   else
 
     # non carbide
-    helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set antiAffinity=required  --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true > /dev/null 2>&1
+    helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set antiAffinity=required  --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --version=v2.8.5 > /dev/null 2>&1
     
   fi 
 
@@ -219,9 +219,7 @@ function longhorn () {
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
 
   # non carbide
-  helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set default.storageMinimalAvailablePercentage=25 --set default.storageOverProvisioningPercentage=200 > /dev/null 2>&1  # --set defaultSettings.v2DataEngine=true --set persistence.defaultDataLocality="best-effort"
-
-  # carbide all the things --set global.cattle.systemDefaultRegistry=rgcrprod.azurecr.us 
+  helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set defaultSettings.storageMinimalAvailablePercentage=25 --set defaultSettings.storageOverProvisioningPercentage=200 --set defaultSettings.allowCollectingLonghornUsageMetrics=false --set persistence.defaultDataLocality="best-effort" --set defaultSettings.v2DataEngine=true --set defaultSettings.v1DataEngine=false > /dev/null 2>&1  
 
   sleep 5
 
