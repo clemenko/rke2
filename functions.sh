@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 
 # functions
+# color
+export RED='\x1b[0;31m'
+export GREEN='\x1b[32m'
+export BLUE='\x1b[34m'
+export YELLOW='\x1b[33m'
+export NO_COLOR='\x1b[0m'
+
+# set functions for debugging/logging
+function info { echo -e "$GREEN[info]$NO_COLOR $1" ;  }
+function warn { echo -e "$YELLOW[warn]$NO_COLOR $1" ; }
+function fatal { echo -e "$RED[error]$NO_COLOR $1" ; exit 1 ; }
+function info_ok { echo -e "$GREEN" "ok" "$NO_COLOR" ; }
 
 #gov logon message
 export govmessage=$(cat <<EOF
@@ -116,13 +128,13 @@ function rancher () {
 
   if [ $CARBIDE == true ]; then
     # carbide all the things - official certs
-    helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel --set rancherImage=rgcrprod.azurecr.us/rancher/rancher > /dev/null 2>&1 
+    helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel --set rancherImage=rgcrprod.azurecr.us/rancher/rancher --set 'extraEnv[0].name=CATTLE_FEATURES' --set 'extraEnv[0].value=ui-sql-cache=true' > /dev/null 2>&1 
     # --version=v2.7.4 
     
   else
 
     # non carbide
-    helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set antiAffinity=required  --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true > /dev/null 2>&1
+    helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set antiAffinity=required  --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set 'extraEnv[0].name=CATTLE_FEATURES' --set 'extraEnv[0].value=ui-sql-cache=true' > /dev/null 2>&1
     
   fi 
 

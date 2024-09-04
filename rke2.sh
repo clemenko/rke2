@@ -33,19 +33,6 @@ export CARBIDEUSER=andy-clemenko-read-token
 ######  NO MOAR EDITS #######
 export PDSH_RCMD_TYPE=ssh
 
-# color
-export RED='\x1b[0;31m'
-export GREEN='\x1b[32m'
-export BLUE='\x1b[34m'
-export YELLOW='\x1b[33m'
-export NO_COLOR='\x1b[0m'
-
-# set functions for debugging/logging
-function info { echo -e "$GREEN[info]$NO_COLOR $1" ;  }
-function warn { echo -e "$YELLOW[warn]$NO_COLOR $1" ; }
-function fatal { echo -e "$RED[error]$NO_COLOR $1" ; exit 1 ; }
-function info_ok { echo -e "$GREEN" "ok" "$NO_COLOR" ; }
-
 #better error checking
 command -v doctl >/dev/null 2>&1 || { fatal "Doctl was not found. Please install" ; }
 command -v curl >/dev/null 2>&1 || { fatal "Curl was not found. Please install" ; }
