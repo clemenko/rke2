@@ -15,7 +15,7 @@ Direct Downloads
 `/etc/rancher/rke2/config.yaml`
 
 ```yaml
-profile: cis-1.23
+profile: cis # for 1.28 and older cis-1.23
 selinux: true
 secrets-encryption: true
 token: bootstrapAllTheThings
