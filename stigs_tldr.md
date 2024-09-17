@@ -42,6 +42,8 @@ kube-apiserver-arg:
 - audit-log-maxage=30
 - audit-log-path=/var/lib/rancher/rke2/server/logs/audit.log
 kubelet-arg:
+- kube-reserved=cpu=400m,memory=1Gi
+- system-reserved=cpu=400m,memory=1Gi
 - protect-kernel-defaults=true
 - read-only-port=0
 - authorization-mode=Webhook
