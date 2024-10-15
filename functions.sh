@@ -48,15 +48,6 @@ pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name
 echo -e "$GREEN" "ok" "$NO_COLOR"
 }
 
-############################# carbide_reg ################################
-function carbide_reg () {
-# hauler login rgcrprod.azurecr.us -u andy-clemenko-read-token -p $CARBIDEPASS
-# adding carbide reg
-echo -e -n " - adding carbide reg"
-pdsh -l root -w $host_list 'mkdir -p /etc/rancher/{rke2,k3s}/; echo -e "mirrors:\n  rgcrprod.azurecr.us:\n    endpoint:\n      - https://rgcrprod.azurecr.us\nconfigs:\n  rgcrprod.azurecr.us:\n    auth:\n      username: "'$CARBIDEUSER'"\n      password: "'$CARBIDEPASS'"" > /etc/rancher/rke2/registries.yaml; rsync -avP /etc/rancher/rke2/registries.yaml /etc/rancher/k3s/' > /dev/null 2>&1
-echo -e "$GREEN" "ok" "$NO_COLOR"
-}
-
 ############################# kernel ################################
 function kernel () {
 #kernel tuning
@@ -108,7 +99,6 @@ function rancher () {
 
   echo -e "$BLUE" "deploying rancher" "$NO_COLOR"
   #helm repo add rancher-latest https://releases.rancher.com/server-charts/latest --force-update > /dev/null 2>&1
-  #helm repo add carbide-charts https://rancherfederal.github.io/carbide-charts --force-update > /dev/null 2>&1
   #helm repo add jetstack https://charts.jetstack.io --force-update > /dev/null 2>&1
 
   echo -e -n " - helm - cert-manager "
@@ -126,17 +116,7 @@ function rancher () {
   kubectl -n cattle-system create secret generic tls-ca --from-file=/Users/clemenko/Dropbox/work/rfed.me/io/cacerts.pem > /dev/null 2>&1 
   # kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=cacerts.pem
 
-  if [ $CARBIDE == true ]; then
-    # carbide all the things - official certs
-    helm upgrade -i rancher carbide-charts/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set systemDefaultRegistry=rgcrprod.azurecr.us --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set carbide.whitelabel.image=rgcrprod.azurecr.us/carbide/carbide-whitelabel --set rancherImage=rgcrprod.azurecr.us/rancher/rancher --set 'extraEnv[0].name=CATTLE_FEATURES' --set 'extraEnv[0].value=ui-sql-cache=true' > /dev/null 2>&1 
-    # --version=v2.7.4 
-    
-  else
-
-    # non carbide
-    helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set antiAffinity=required  --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set 'extraEnv[0].name=CATTLE_FEATURES' --set 'extraEnv[0].value=ui-sql-cache=true' > /dev/null 2>&1
-    
-  fi 
+  helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set antiAffinity=required  --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set 'extraEnv[0].name=CATTLE_FEATURES' --set 'extraEnv[0].value=ui-sql-cache=true' > /dev/null 2>&1
 
   echo -e "$GREEN" "ok" "$NO_COLOR"
 
@@ -179,48 +159,6 @@ metadata:
 value: '{"bannerHeader":{"background":"#007a33","color":"#ffffff","textAlignment":"center","fontWeight":null,"fontStyle":null,"fontSize":"14px","textDecoration":null,"text":"UNCLASSIFIED//FOUO"},"bannerFooter":{"background":"#007a33","color":"#ffffff","textAlignment":"center","fontWeight":null,"fontStyle":null,"fontSize":"14px","textDecoration":null,"text":"UNCLASSIFIED//FOUO"},"bannerConsent":{"background":"#ffffff","color":"#000000","textAlignment":"left","fontWeight":null,"fontStyle":null,"fontSize":"14px","textDecoration":false,"text":"$govmessage","button":"Accept"},"showHeader":"true","showFooter":"true","showConsent":"true"}'
 EOF
 
- if [ $CARBIDE == true ]; then
-    # carbide
-    echo -e -n " - adding Carbide "
-
-    # add offline docs
-    helm upgrade -i airgapped-docs carbide-charts/airgapped-docs -n carbide-docs-system --create-namespace > /dev/null 2>&1
-
-    kubectl create namespace carbide-stigatron-system > /dev/null 2>&1
-    kubectl create secret generic stigatron-license -n carbide-stigatron-system --from-literal=license=$CARBIDELIC > /dev/null 2>&1 
-    #--set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE"
-
-    token=$(curl -sk -X POST https://rancher.$domain/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"'$password'"}' | jq -r .token)
-
-    # enable extension
-    curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"type":"catalog.cattle.io.clusterrepo","metadata":{"name":"rancher-ui-plugins"},"spec":{"gitBranch":"main","gitRepo":"https://github.com/rancher/ui-plugin-charts"}}' > /dev/null 2>&1
-    
-    sleep 15
-    
-    # add extension
-    curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator","version":"103.0.1+up0.2.1","releaseName":"ui-plugin-operator","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
-
-    # add extension
-    curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"ui-plugin-operator-crd","version":"103.0.1+up0.2.1","releaseName":"ui-plugin-operator-crd","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}}],"wait":true,"namespace":"cattle-ui-plugin-system"}' > /dev/null 2>&1
-
-    sleep 15
-
-    # add sigatron-ui
-    helm upgrade -i -n carbide-stigatron-system --create-namespace stigatron-ui carbide-charts/stigatron-ui > /dev/null 2>&1 #--set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE"
-
-    sleep 15
-
-    # cis benchmarks
-    curl -sk https://rancher.$domain/v1/catalog.cattle.io.clusterrepos/rancher-charts?action=install -H 'content-type: application/json' -H "Authorization: Bearer $token" -d '{"charts":[{"chartName":"rancher-cis-benchmark-crd","version":"4.0.0","releaseName":"rancher-cis-benchmark-crd","projectId":null,"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us","clusterId":"local","clusterName":"local","systemProjectId":"p-rs4pl","url":"https://rancher.'$domain'","rkePathPrefix":"","rkeWindowsPathPrefix":""},"systemDefaultRegistry":"rgcrprod.azurecr.us"}}},{"chartName":"rancher-cis-benchmark","version":"4.0.0","releaseName":"rancher-cis-benchmark","annotations":{"catalog.cattle.io/ui-source-repo-type":"cluster","catalog.cattle.io/ui-source-repo":"rancher-charts"},"values":{"global":{"cattle":{"systemDefaultRegistry":"rgcrprod.azurecr.us","clusterId":"local","clusterName":"local","systemProjectId":"p-rs4pl","url":"https://rancher.'$domain'","rkePathPrefix":"","rkeWindowsPathPrefix":""},"systemDefaultRegistry":"rgcrprod.azurecr.us"}}}],"noHooks":false,"timeout":"600s","wait":true,"namespace":"cis-operator-system","projectId":null,"disableOpenAPIValidation":false,"skipCRDs":false}' > /dev/null 2>&1
-
-    sleep 15
-
-    # add stigatron operator
-    helm upgrade -i -n carbide-stigatron-system stigatron carbide-charts/stigatron  > /dev/null 2>&1 # --set "global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE" --set "heimdall2.global.cattle.systemDefaultRegistry=YOUR_REGISTRY_HERE" 
-  
-    echo -e "$GREEN" "ok" "$NO_COLOR"
-
-  fi
 }
 
 ################################ longhorn ##############################
@@ -230,7 +168,6 @@ function longhorn () {
   
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
 
-  # non carbide
   helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set defaultSettings.storageMinimalAvailablePercentage=25 --set defaultSettings.storageOverProvisioningPercentage=200 --set defaultSettings.allowCollectingLonghornUsageMetrics=false --set persistence.defaultDataLocality="best-effort" > /dev/null 2>&1  #--set defaultSettings.v2DataEngine=true #--set defaultSettings.v1DataEngine=false  
 
   sleep 5
@@ -319,8 +256,6 @@ function fleet () {
   echo -e -n " fleet-ing "
   # for downstream clusters
   kubectl create secret -n cattle-global-data generic awscred --from-literal=amazonec2credentialConfig-defaultRegion=us-east-1 --from-literal=amazonec2credentialConfig-accessKey=${AWS_ACCESS_KEY} --from-literal=amazonec2credentialConfig-secretKey=${AWS_SECRET_KEY}  > /dev/null 2>&1
-
-  kubectl create secret -n fleet-default generic --type kubernetes.io/basic-auth carbidecredential --from-literal=username=andy-clemenko-read-token --from-literal=password=${CARBIDEPASS} > /dev/null 2>&1
 
   kubectl create secret -n cattle-global-data generic docreds --from-literal=digitaloceancredentialConfig-accessToken=${DO_TOKEN} > /dev/null 2>&1
 

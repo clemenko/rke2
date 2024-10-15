@@ -25,11 +25,6 @@ prefix=rke # no rke k3s
 k8s_version=v1.30 #latest
 # curl -s https://update.rke2.io/v1-release/channels | jq '.data[] | select(.id=="stable") | .latest'
 
-# Carbide creds
-export CARBIDE=false # or true to enable carbide
-export CARBIDEUSER=andy-clemenko-read-token
-#export CARBIDEPASS=  # set on the command line
-
 ######  NO MOAR EDITS #######
 export PDSH_RCMD_TYPE=ssh
 
@@ -101,8 +96,6 @@ kernel
 
 #or deploy k3s
 if [ "$prefix" != k3s ] && [ "$prefix" != rke ]; then exit; fi
-
-carbide_reg
 
 if [ "$prefix" = k3s ]; then
   echo -e -n " - deploying k3s"
