@@ -44,7 +44,7 @@ function usage () {
 function centos_packages () {
 # adding centos packages.
 echo -e -n " - adding os packages"
-pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl enable --now iscsid; #yum update -y' > /dev/null 2>&1
+pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl enable --now iscsid; yum update openssh -y; #yum update -y' > /dev/null 2>&1
 echo -e "$GREEN" "ok" "$NO_COLOR"
 }
 

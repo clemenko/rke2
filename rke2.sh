@@ -12,8 +12,8 @@ set -e
 num=3
 password=Pa22word
 zone=nyc1
-size=s-4vcpu-8gb-amd
-#s-8vcpu-16gb-amd
+size=s-4vcpu-8gb
+#s-8vcpu-16gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=rfed.io
 
@@ -59,7 +59,7 @@ for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 
 #build VMS
 echo -e -n " - building vms -$build_list"
-doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --wait --droplet-agent=false > /dev/null 2>&1 || fatal "vms did not build"
+doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys $key --wait > /dev/null 2>&1 || fatal "vms did not build"
 info_ok
 
 #check for SSH
@@ -116,7 +116,7 @@ if [ "$prefix" = rke ]; then
 
   # systemctl disable nm-cloud-setup.service nm-cloud-setup.timer
   
-  ssh root@$server 'mkdir -p /var/lib/rancher/rke2/server/manifests/; useradd -r -c "etcd user" -s /sbin/nologin -M etcd -U; echo -e "apiVersion: audit.k8s.io/v1\nkind: Policy\nmetadata:\n  name: rke2-audit-policy\nrules:\n  - level: Metadata\n    resources:\n    - group: \"\"\n      resources: [\"secrets\"]\n  - level: RequestResponse\n    resources:\n    - group: \"\"\n      resources: [\"*\"]" > /etc/rancher/rke2/audit-policy.yaml; echo -e "profile: cis\nselinux: true\nsecrets-encryption: true\ntoken: bootstrapAllTheThings\ntls-san:\n- rke."'$domain'"\nwrite-kubeconfig-mode: 0600\npod-security-admission-config-file: /etc/rancher/rke2/rancher-psact.yaml\nkube-controller-manager-arg:\n- bind-address=127.0.0.1\n- use-service-account-credentials=true\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384\nkube-scheduler-arg:\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384\nkube-apiserver-arg:\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384\n- authorization-mode=RBAC,Node\n- anonymous-auth=false\n- audit-policy-file=/etc/rancher/rke2/audit-policy.yaml\n- audit-log-mode=blocking-strict\n- audit-log-maxage=30\nkubelet-arg:\n- kube-reserved=cpu=400m,memory=1Gi\n- system-reserved=cpu=400m,memory=1Gi\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook\n- streaming-connection-idle-timeout=5m\n- max-pods=400" > /etc/rancher/rke2/config.yaml;  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher-psact.yaml -o /etc/rancher/rke2/rancher-psact.yaml ; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$k8s_version' sh - ; systemctl enable --now rke2-server.service' > /dev/null 2>&1
+  ssh root@$server 'mkdir -p /var/lib/rancher/rke2/server/manifests/ /etc/rancher/rke2/; useradd -r -c "etcd user" -s /sbin/nologin -M etcd -U; echo -e "apiVersion: audit.k8s.io/v1\nkind: Policy\nmetadata:\n  name: rke2-audit-policy\nrules:\n  - level: Metadata\n    resources:\n    - group: \"\"\n      resources: [\"secrets\"]\n  - level: RequestResponse\n    resources:\n    - group: \"\"\n      resources: [\"*\"]" > /etc/rancher/rke2/audit-policy.yaml; echo -e "profile: cis\nselinux: true\nsecrets-encryption: true\ntoken: bootstrapAllTheThings\ntls-san:\n- rke."'$domain'"\nwrite-kubeconfig-mode: 0600\npod-security-admission-config-file: /etc/rancher/rke2/rancher-psact.yaml\nkube-controller-manager-arg:\n- bind-address=127.0.0.1\n- use-service-account-credentials=true\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384\nkube-scheduler-arg:\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384\nkube-apiserver-arg:\n- tls-min-version=VersionTLS12\n- tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384\n- authorization-mode=RBAC,Node\n- anonymous-auth=false\n- audit-policy-file=/etc/rancher/rke2/audit-policy.yaml\n- audit-log-mode=blocking-strict\n- audit-log-maxage=30\nkubelet-arg:\n- kube-reserved=cpu=400m,memory=1Gi\n- system-reserved=cpu=400m,memory=1Gi\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook\n- streaming-connection-idle-timeout=5m\n- max-pods=400" > /etc/rancher/rke2/config.yaml;  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/rancher-psact.yaml -o /etc/rancher/rke2/rancher-psact.yaml ; curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$k8s_version' sh - ; systemctl enable --now rke2-server.service' > /dev/null 2>&1
 
 # echo -e "apiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml;
 
@@ -124,7 +124,7 @@ if [ "$prefix" = rke ]; then
 
   sleep 15
 
-  pdsh -l root -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$k8s_version' INSTALL_RKE2_TYPE=agent sh - && echo -e "selinux: true\nserver: https://"'$server'":9345\ntoken: bootstrapAllTheThings\nwrite-kubeconfig-mode: 0600\nprofile: cis\nkube-apiserver-arg:\n- authorization-mode=RBAC,Node\nkubelet-arg:\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook" > /etc/rancher/rke2/config.yaml; systemctl enable --now rke2-agent.service' > /dev/null 2>&1
+  pdsh -l root -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$k8s_version' INSTALL_RKE2_TYPE=agent sh - && echo -e "selinux: true\nserver: https://"'$server'":9345\ntoken: bootstrapAllTheThings\nprofile: cis\nkubelet-arg:\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook" > /etc/rancher/rke2/config.yaml; systemctl enable --now rke2-agent.service' > /dev/null 2>&1
 
   ssh root@$server cat /etc/rancher/rke2/rke2.yaml | sed -e "s/127.0.0.1/$server/g" > ~/.kube/config 
   chmod 0600 ~/.kube/config
