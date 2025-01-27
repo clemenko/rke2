@@ -13,7 +13,7 @@ num=3
 password=Pa22word
 zone=nyc1
 size=s-4vcpu-8gb
-#s-8vcpu-16gb
+# s-8vcpu-16gb
 key=30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01
 domain=rfed.io
 
