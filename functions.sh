@@ -279,17 +279,18 @@ function demo () {
 
   # echo -e -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
 
-  # echo -e -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple_nginx.yml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
+  echo -e -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple_nginx.yml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
   
-  # echo -e -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/ghost.yaml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
+  # echo -e -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/refs/heads/master/ghost.yaml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
   
-   echo -e -n " - minio "
-   # helm repo add minio https://charts.min.io/ --force-update
+  echo -e -n " - minio "
+  helm repo add minio https://charts.min.io/ --force-update
   #kubectl create ns minio > /dev/null 2>&1 
   # kubectl -n minio create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
 
-  # helm upgrade -i minio minio/minio -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain --set consoleIngress.tls[0].secretName=tls-ingress --set ingress.tls[0].secretName=tls-ingress --set ingress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set consoleIngress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" > /dev/null 2>&1
-   echo -e "$GREEN""ok" "$NO_COLOR"
+  helm upgrade -i minio minio/minio -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain --set ingress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set consoleIngress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" > /dev/null 2>&1
+  echo -e "$GREEN""ok" "$NO_COLOR"
+   # --set consoleIngress.tls[0].secretName=tls-ingress --set ingress.tls[0].secretName=tls-ingress 
 
   echo -e -n " - gitness "
   curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitness.yaml  | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
