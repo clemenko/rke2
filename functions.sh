@@ -248,7 +248,6 @@ EOF
  # helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set manager.ingress.enabled=true --set manager.ingress.host=neuvector2.rfed.io --set manager.ingress.tls=true --set manager.ingress.secretName=tls-ingress --set controller.federation.managedsvc.ingress.enabled=true --set controller.federation.managedsvc.ingress.host=nv-down1.rfed.io --set controller.federation.managedsvc.ingress.tls=true --set controller.federation.managedsvc.ingress.secretName=tls-ingress --set controller.federation.managedsvc.type=ClusterIP
 
  # https://gist.github.com/clemenko/385d6ce697e1f7a4601dbfc24d9a87e2
-
 }
 
 ############################# fleet ################################
@@ -260,16 +259,6 @@ function fleet () {
   kubectl create secret -n cattle-global-data generic docreds --from-literal=digitaloceancredentialConfig-accessToken=${DO_TOKEN} > /dev/null 2>&1
 
   kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml > /dev/null 2>&1
-  echo -e "$GREEN""ok" "$NO_COLOR"
-}
-
-############################# nats ################################
-function nats () {
-  echo -e -n " nats demo "
-  kubectl create ns kubecon > /dev/null 2>&1
-  kubectl -n kubecon create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1
-
-  kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/kubecon23.yaml > /dev/null 2>&1
   echo -e "$GREEN""ok" "$NO_COLOR"
 }
 
