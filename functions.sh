@@ -122,7 +122,7 @@ function rancher () {
 
   # wait for rancher
   echo -e -n " - waiting for rancher "
-  until [ $(curl -sk https://rancher.$domain/v3-public/authtokens | grep uuid | wc -l) = 1 ]; do 
+  until [ $(curl -sk curl -sk https://rancher.$domain/v3-public/authproviders | grep local | wc -l ) = 1 ]; do 
     sleep 2
     echo -e -n "." 
     done
