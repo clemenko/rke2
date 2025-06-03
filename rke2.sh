@@ -49,7 +49,7 @@ function up () {
 build_list=""
 # helm repo update > /dev/null 2>&1
 
-if [ ! -z $(dolist) ]; then
+if [[ -n "$(dolist)" ]]; then
   fatal "Warning - cluster already detected..."
   exit
 fi
