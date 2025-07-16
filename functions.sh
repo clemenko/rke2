@@ -285,7 +285,7 @@ function rancher () {
 
   # wait for rancher
   echo -e -n " - waiting for rancher"
-  until [ $(curl -sk curl -sk https://rancher.$domain/v3-public/authproviders | grep local | wc -l ) = 1 ]; do 
+  until [ $(curl -sk https://rancher.$domain/v3-public/authproviders | grep local | wc -l ) = 1 ]; do 
     sleep 2; echo -e -n "."; done
 
   info_ok
