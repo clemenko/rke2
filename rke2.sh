@@ -120,8 +120,6 @@ if [ "$prefix" = rke ]; then
 # ssl-passthrough
 # echo -e "apiVersion: helm.cattle.io/v1\nkind: HelmChartConfig\nmetadata:\n  name: rke2-ingress-nginx\n  namespace: kube-system\nspec:\n  valuesContent: |-\n    controller:\n      config:\n        use-forwarded-headers: true\n      extraArgs:\n        enable-ssl-passthrough: true" > /var/lib/rancher/rke2/server/manifests/rke2-ingress-nginx-config.yaml;
 
-# INSTALL_RKE2_VERSION=v1.24.4+rke2r1
-
   sleep 15
 
   pdsh -l root -w $worker_list 'curl -sfL https://get.rke2.io | INSTALL_RKE2_CHANNEL='$k8s_version' INSTALL_RKE2_TYPE=agent sh - && echo -e "selinux: true\nserver: https://"'$server'":9345\ntoken: bootstrapAllTheThings\nprofile: cis\nkubelet-arg:\n- protect-kernel-defaults=true\n- read-only-port=0\n- authorization-mode=Webhook" > /etc/rancher/rke2/config.yaml; systemctl enable --now rke2-agent.service' > /dev/null 2>&1
@@ -163,6 +161,7 @@ info_ok
 case "$1" in
         up) up;;
         kill) kill;;
+        px) portworx;;
         neu) neu;;
         dolist) dolist;;
         keycloak) keycloak;;

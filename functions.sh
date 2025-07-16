@@ -12,7 +12,7 @@ export NO_COLOR='\x1b[0m'
 function info { echo -e "$GREEN[info]$NO_COLOR $1" ;  }
 function warn { echo -e "$YELLOW[warn]$NO_COLOR $1" ; }
 function fatal { echo -e "$RED[error]$NO_COLOR $1" ; exit 1 ; }
-function info_ok { echo -e "$GREEN" "ok" "$NO_COLOR" ; }
+function info_ok { echo -e "$GREEN"" ok""$NO_COLOR" ; }
 
 #gov logon message
 export govmessage=$(cat <<EOF
@@ -45,7 +45,7 @@ function centos_packages () {
 # adding centos packages.
 echo -e -n " - adding os packages"
 pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; systemctl enable --now iscsid; yum update openssh -y; #yum update -y' > /dev/null 2>&1
-echo -e "$GREEN" "ok" "$NO_COLOR"
+info_ok
 }
 
 ############################# kernel ################################
@@ -86,7 +86,170 @@ net.ipv6.conf.all.disable_ipv6 = 1
 net.ipv6.conf.default.disable_ipv6 = 1
 EOF
 sysctl -p' > /dev/null 2>&1
-echo -e "$GREEN" "ok" "$NO_COLOR"
+info_ok
+}
+
+################################ portworx ##############################
+function portworx () {
+
+# from https://gist.github.com/clemenko/00dcbb344476aafda18dbae207952d71
+
+# add volumes
+echo -e -n " - px - checking volumes"
+if [ "$(doctl compute volume list --no-header | wc -l | xargs )" != 0 ]; then echo -e -n " "$GREEN"- detected -";
+
+else
+  echo -e -n " - adding"
+  for num in 1 2 3; do
+    doctl compute volume-action attach $(doctl compute volume create port$num --region nyc1 --size 60GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep rke$num | awk '{print $1}') > /dev/null 2>&1
+  done
+fi
+
+info_ok
+
+echo -e -n " - px - adding operator and storagecluster - "$RED"will take about 15 min"$NO_COLOR""
+# operator
+echo -e -n " ."
+kubectl apply -f 'https://install.portworx.com/3.3?comp=pxoperator&kbver=1.31.0&ns=portworx' > /dev/null 2>&1
+sleep 15
+echo -e -n " ."
+kubectl wait --for condition=containersready -n portworx pod --all > /dev/null 2>&1
+
+# StorageCluster spec
+echo -e -n " ."
+kubectl apply -f 'https://install.portworx.com/3.3?operator=true&mc=false&kbver=1.31.0&ns=portworx&b=true&iop=6&c=px-cluster1&stork=true&csi=true&mon=true&tel=false&st=k8s&promop=true' > /dev/null 2>&1 
+sleep 30
+echo -e -n " ."
+kubectl wait --for condition=Ready -n portworx pod --all --timeout=2000s   > /dev/null 2>&1
+
+# make a default storage class
+echo -e -n " ."
+kubectl patch storageclass px-csi-db -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1 
+
+info_ok
+
+echo -e -n " - px - adding central"
+
+helm repo add portworx http://charts.portworx.io/ --force-update > /dev/null 2>&1
+
+helm upgrade -i px-central portworx/px-central --namespace px-central --create-namespace --set persistentStorage.enabled=true,persistentStorage.storageClassName="px-csi-db",service.pxCentralUIServiceType="ClusterIP",pxbackup.enabled=true,pxmonitor.enabled=false,installCRDs=true > /dev/null 2>&1
+
+until [ $(kubectl get pod -n px-central | wc -l | xargs ) = 18 ]; do sleep 5; done
+
+cat <<EOF | kubectl apply -n px-central -f - > /dev/null 2>&1 
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: px-central-ui
+  namespace: px-central
+spec:
+  rules:
+  - host: central.rfed.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: px-central-ui
+            port:
+              number: 80
+        path: /
+        pathType: ImplementationSpecific
+EOF
+
+info_ok
+
+echo -e -n " - px - adding grafana"
+
+export PX_URL="https://docs.portworx.com/samples/portworx-enterprise/k8s/pxc"
+
+# create config maps
+kubectl create configmap -n portworx  grafana-dashboard-config --from-literal=grafana-dashboard-config.yaml="$(curl -sk $PX_URL/grafana-dashboard-config.yaml)" > /dev/null 2>&1
+kubectl create configmap -n portworx  grafana-source-config --from-literal=grafana-dashboard-config.yaml="$(curl -sk $PX_URL/grafana-datasource.yaml)" > /dev/null 2>&1
+
+# dashboards
+kubectl -n portworx create configmap grafana-dashboards \
+--from-literal=portworx-cluster-dashboard.json="$(curl -sk $PX_URL/portworx-cluster-dashboard.json)" \
+--from-literal=portworx-performance-dashboard.json="$(curl -sk $PX_URL/portworx-performance-dashboard.json)" \
+--from-literal=portworx-node-dashboard.json="$(curl -sk $PX_URL/portworx-node-dashboard.json)" \
+--from-literal=portworx-volume-dashboard.json="$(curl -sk $PX_URL/portworx-volume-dashboard.json)" \
+--from-literal=portworx-etcd-dashboard.json="$(curl -sk $PX_URL/portworx-etcd-dashboard.json)" > /dev/null 2>&1
+
+# install with ingress
+cat << EOF | kubectl apply -n portworx -f - > /dev/null 2>&1
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+  selector:
+    app: grafana
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - image: grafana/grafana
+          name: grafana
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: grafana-dash-config
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboard-templates
+              mountPath: /var/lib/grafana/dashboards
+            - name: grafana-source-config
+              mountPath: /etc/grafana/provisioning/datasources
+      volumes:
+        - name: grafana-source-config
+          configMap:
+            name: grafana-source-config
+        - name: grafana-dash-config
+          configMap:
+            name: grafana-dashboard-config
+        - name: dashboard-templates
+          configMap:
+            name: grafana-dashboards
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+spec:
+  rules:
+  - host: grafana.rfed.io
+    http:
+      paths:
+      - backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
+        path: /
+        pathType: ImplementationSpecific
+EOF
+
+info_ok
+
+info "navigate to - "$BLUE"https://central.rfed.io "$GREEN"admin / admin"$NO_COLOR""
+info "navigate to - "$BLUE"https://grafana.rfed.io "$GREEN"admin / admin"$NO_COLOR""
+
 }
 
 ################################ rancher ##############################
@@ -101,12 +264,12 @@ function rancher () {
   #helm repo add rancher-latest https://releases.rancher.com/server-charts/latest --force-update > /dev/null 2>&1
   #helm repo add jetstack https://charts.jetstack.io --force-update > /dev/null 2>&1
 
-  echo -e -n " - helm - cert-manager "
+  echo -e -n " - helm - cert-manager"
   helm upgrade -i cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set crds.enabled=true > /dev/null 2>&1 
   
-  echo -e "$GREEN" "ok" "$NO_COLOR"
+  info_ok
   
-  echo -e -n " - helm - rancher "
+  echo -e -n " - helm - rancher"
 
   # custom TLS certs
   kubectl create ns cattle-system > /dev/null 2>&1 
@@ -118,17 +281,16 @@ function rancher () {
 
   helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set antiAffinity=required  --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set 'extraEnv[0].name=CATTLE_FEATURES' --set 'extraEnv[0].value=ui-sql-cache=true' > /dev/null 2>&1
 
-  echo -e "$GREEN" "ok" "$NO_COLOR"
+  info_ok
 
   # wait for rancher
-  echo -e -n " - waiting for rancher "
+  echo -e -n " - waiting for rancher"
   until [ $(curl -sk curl -sk https://rancher.$domain/v3-public/authproviders | grep local | wc -l ) = 1 ]; do 
-    sleep 2
-    echo -e -n "." 
-    done
-  echo -e "$GREEN" "ok" "$NO_COLOR"
+    sleep 2; echo -e -n "."; done
 
-  echo -e -n " - bootstrapping "
+  info_ok
+
+  echo -e -n " - bootstrapping"
 cat <<EOF | kubectl apply -f -  > /dev/null 2>&1
 apiVersion: management.cattle.io/v3
 kind: Setting
@@ -148,7 +310,8 @@ EOF
   curl -sk https://rancher.$domain/v3/settings/server-url -H 'content-type: application/json' -H "Authorization: Bearer $api_token" -X PUT -d '{"name":"server-url","value":"https://rancher.'$domain'"}'  > /dev/null 2>&1
 
   curl -sk https://rancher.$domain/v3/settings/telemetry-opt -X PUT -H 'content-type: application/json' -H 'accept: application/json' -H "Authorization: Bearer $api_token" -d '{"value":"out"}' > /dev/null 2>&1
-  echo -e "$GREEN" "ok" "$NO_COLOR"
+
+  info_ok
 
   # class banners
 cat <<EOF | kubectl apply -f -  > /dev/null 2>&1
@@ -163,7 +326,7 @@ EOF
 
 ################################ longhorn ##############################
 function longhorn () {
-  echo -e -n  " - longhorn "
+  echo -e -n  " - longhorn"
   # helm repo add longhorn https://charts.longhorn.io --force-update
   
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
@@ -182,12 +345,12 @@ function longhorn () {
   # add encryption per volume storage class 
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/longhorn_encryption.yml > /dev/null 2>&1
 
-  echo -e "$GREEN" "ok" "$NO_COLOR"
+  info_ok
 }
 
 ################################ neu ##############################
 function neu () {
-  echo -e -n  " - neuvector "
+  echo -e -n  " - neuvector"
   
   # helm repo add neuvector https://neuvector.github.io/neuvector-helm/ --force-update
   
@@ -242,7 +405,7 @@ EOF
 
   curl -sk -H "Content-Type: application/json" -H 'Token: '$TOKEN https://neuvector.$domain/eula -d '{"accepted":true}' > /dev/null 2>&1
 
-  echo -e "$GREEN" "ok" "$NO_COLOR"
+  info_ok
 
  # federation managed
  # helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set manager.ingress.enabled=true --set manager.ingress.host=neuvector2.rfed.io --set manager.ingress.tls=true --set manager.ingress.secretName=tls-ingress --set controller.federation.managedsvc.ingress.enabled=true --set controller.federation.managedsvc.ingress.host=nv-down1.rfed.io --set controller.federation.managedsvc.ingress.tls=true --set controller.federation.managedsvc.ingress.secretName=tls-ingress --set controller.federation.managedsvc.type=ClusterIP
@@ -252,48 +415,50 @@ EOF
 
 ############################# fleet ################################
 function fleet () {
-  echo -e -n " fleet-ing "
+  echo -e -n " fleet-ing"
   # for downstream clusters
   # kubectl create secret -n cattle-global-data generic awscred --from-literal=amazonec2credentialConfig-defaultRegion=us-east-1 --from-literal=amazonec2credentialConfig-accessKey=${AWS_ACCESS_KEY} --from-literal=amazonec2credentialConfig-secretKey=${AWS_SECRET_KEY}  > /dev/null 2>&1
 
   kubectl create secret -n cattle-global-data generic docreds --from-literal=digitaloceancredentialConfig-accessToken=${DO_TOKEN} > /dev/null 2>&1
 
   kubectl apply -f https://raw.githubusercontent.com/clemenko/fleet/main/gitrepo.yml > /dev/null 2>&1
-  echo -e "$GREEN""ok" "$NO_COLOR"
+  
+  info_ok
 }
 
 ############################# demo ################################
 function demo () {
-  echo -e " demo-ing "
+  echo -e " demo-ing"
 
-  # echo -e -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
+  # echo -e -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; info_ok
 
-  echo -e -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple_nginx.yml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
+  echo -e -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple_nginx.yml > /dev/null 2>&1; info_ok
   
-  # echo -e -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/refs/heads/master/ghost.yaml > /dev/null 2>&1; echo -e "$GREEN""ok" "$NO_COLOR"
+  # echo -e -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/refs/heads/master/ghost.yaml > /dev/null 2>&1; info_ok
   
-  echo -e -n " - minio "
+  echo -e -n " - minio"
   helm repo add minio https://charts.min.io/ --force-update
   #kubectl create ns minio > /dev/null 2>&1 
   # kubectl -n minio create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
 
   helm upgrade -i minio minio/minio -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain --set ingress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set consoleIngress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" > /dev/null 2>&1
-  echo -e "$GREEN""ok" "$NO_COLOR"
+  info_ok
+
    # --set consoleIngress.tls[0].secretName=tls-ingress --set ingress.tls[0].secretName=tls-ingress 
 
-  echo -e -n " - gitness "
-  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitness.yaml  | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
-  echo -e "$GREEN""ok" "$NO_COLOR"
+#  echo -e -n " - gitness"
+#  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitness.yaml  | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
+#  info_ok
 
-  echo -e -n " - harbor "
+#  echo -e -n " - harbor"
   # helm repo add harbor https://helm.goharbor.io --force-update
-  kubectl create ns harbor > /dev/null 2>&1 
-  kubectl -n harbor create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
+#  kubectl create ns harbor > /dev/null 2>&1 
+#  kubectl -n harbor create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
 
-  helm upgrade -i harbor harbor/harbor -n harbor --create-namespace --set expose.tls.certSource=secret --set expose.tls.secret.secretName=tls-ingress --set expose.tls.enabled=false --set expose.tls.auto.commonName=harbor.$domain --set expose.ingress.hosts.core=harbor.$domain --set persistence.enabled=false --set harborAdminPassword=$password --set externalURL=http://harbor.$domain --set notary.enabled=false > /dev/null 2>&1;
-  echo -e "$GREEN""ok" "$NO_COLOR"
+#  helm upgrade -i harbor harbor/harbor -n harbor --create-namespace --set expose.tls.certSource=secret --set expose.tls.secret.secretName=tls-ingress --set expose.tls.enabled=false --set expose.tls.auto.commonName=harbor.$domain --set expose.ingress.hosts.core=harbor.$domain --set persistence.enabled=false --set harborAdminPassword=$password --set externalURL=http://harbor.$domain --set notary.enabled=false > /dev/null 2>&1;
+#  info_ok
 
-  echo -e -n " - gitea "
+  echo -e -n " - gitea"
   helm upgrade -i gitea oci://registry-1.docker.io/giteacharts/gitea -n gitea --create-namespace --set gitea.admin.password=$password --set gitea.admin.username=gitea --set persistence.size=500Mi --set ingress.enabled=true --set ingress.hosts[0].host=git.$domain --set ingress.hosts[0].paths[0].path=/ --set ingress.hosts[0].paths[0].pathType=Prefix --set gitea.config.server.DOMAIN=git.$domain --set postgresql-ha.enabled=false --set redis-cluster.enabled=false --set gitea.config.database.DB_TYPE=sqlite3 --set gitea.config.session.PROVIDER=memory  --set gitea.config.cache.ADAPTER=memory --set gitea.config.queue.TYPE=level > /dev/null 2>&1
 
   # mirror github
@@ -302,11 +467,11 @@ function demo () {
   sleep 5
   
   curl -X POST http://git.$domain/api/v1/repos/migrate -H 'accept: application/json' -H 'authorization: Basic Z2l0ZWE6UGEyMndvcmQ=' -H 'Content-Type: application/json' -d '{ "clone_addr": "https://github.com/clemenko/fleet", "repo_name": "fleet","repo_owner": "gitea"}' > /dev/null 2>&1
-  echo -e "$GREEN""ok" "$NO_COLOR"
+  info_ok
 
 #  echo -e -n " - tailscale "
 #  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/tailscale.yaml  | sed -e "s/XXX/$TAILSCALE_ID/g" -e "s/ZZZ/$TAILSCALE_TOKEN/g" | kubectl apply -f - > /dev/null 2>&1
-#  echo -e "$GREEN""ok" "$NO_COLOR"
+#  info_ok
 } 
 
 ################################ keycloak ##############################
@@ -318,7 +483,7 @@ function keycloak () {
   RANCHER_URL=rancher.$domain
 
   echo -e " keycloaking"
-  echo -e -n " - deploying "
+  echo -e -n " - deploying"
   
   kubectl create ns keycloak > /dev/null 2>&1 
   kubectl -n keycloak create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
@@ -329,14 +494,14 @@ function keycloak () {
   #helm upgrade -i keycloak  bitnami/keycloak --namespace keycloak --create-namespace --set auth.adminUser=admin --set auth.adminPassword=Pa22word > /dev/null 2>&1
   # --set ingress.enabled=true --set ingress.hostname=keycloak.$domain --set ingress.tls=true --set tls.enabled=true --set httpRelativePath="/"
   
-  echo -e "$GREEN""ok" "$NO_COLOR"
+  info_ok
   
-  echo -e -n " - waiting for keycloak "
+  echo -e -n " - waiting for keycloak"
 
   until [ $(curl -sk https://$KEY_URL/ | grep "Administration Console" | wc -l) = 1 ]; do echo -e -n "." ; sleep 2; done
-  echo -e "$GREEN"" ok" "$NO_COLOR"
+  info_ok
 
-  echo -e -n " - adding realm and client "
+  echo -e -n " - adding realm and client"
 
   # get auth token - notice keycloak's password 
   export key_token=$(curl -sk -X POST https://$KEY_URL/realms/master/protocol/openid-connect/token -d 'client_id=admin-cli&username=admin&password='$password'&credentialId=&grant_type=password' | jq -r .access_token)
@@ -379,9 +544,9 @@ function keycloak () {
   # add keycloak user admin / Pa22word
   curl -k 'https://'$KEY_URL'/admin/realms/rancher/users' -H 'Content-Type: application/json' -H "authorization: Bearer $key_token" -d '{"enabled":true,"attributes":{},"groups":["/admins", "/devs"],"credentials":[{"type":"password","value":"'$password'","temporary":false}],"username":"admin","emailVerified":"","firstName":"Admin","lastName":"Clemenko"}' 
 
-  echo -e "$GREEN""ok" "$NO_COLOR"
+  info_ok
 
-  echo -e -n " - configuring rancher "
+  echo -e -n " - configuring rancher"
   # configure rancher
   token=$(curl -sk -X POST https://$RANCHER_URL/v3-public/localProviders/local?action=login -H 'content-type: application/json' -d '{"username":"admin","password":"'$password'"}' | jq -r .token)
 
@@ -391,7 +556,7 @@ function keycloak () {
 
   # login with keycloak user - manual
 
-  echo -e "$GREEN""ok" "$NO_COLOR"
+  info_ok
 
 }
 
@@ -400,7 +565,7 @@ function rox () {
 # https://github.com/stackrox/stackrox#quick-installation-using-helm
 # helm repo add stackrox https://raw.githubusercontent.com/stackrox/helm-charts/main/opensource/ --force-update
 
-echo -e -n  " - stackrox "
+echo -e -n  " - stackrox"
 
  helm upgrade -i stackrox-central-services stackrox/stackrox-central-services -n stackrox --create-namespace --set central.adminPassword.value=$password --set central.resources.requests.memory=1Gi --set central.resources.limits.memory=2Gi --set central.db.resources.requests.memory=1Gi --set central.db.resources.limits.memory=2Gi --set scanner.autoscaling.disable=true --set scanner.replicas=1 --set scanner.resources.requests.memory=500Mi --set scanner.resources.limits.memory=2500Mi --set central.resources.requests.cpu=1 --set central.resources.limits.cpu=1 --set central.db.resources.requests.cpu=500m --set central.db.resources.limits.cpu=1 --set central.persistence.none=true --set central.db.persistence.persistentVolumeClaim.size=1Gi > /dev/null 2>&1
 
@@ -439,7 +604,7 @@ EOF
 
  rm -rf stackrox-init-bundle.yaml 
 
- echo -e "$GREEN"" ok" "$NO_COLOR"
+ info_ok
 }
 
 
