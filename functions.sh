@@ -107,7 +107,7 @@ fi
 
 info_ok
 
-echo -e -n " - px - adding operator and storagecluster - "$RED"will take about 15 min"$NO_COLOR""
+echo -e -n " - px - adding operator and storagecluster - "$RED"can take about 10 min"$NO_COLOR""
 # operator
 echo -e -n " ."
 kubectl apply -f 'https://install.portworx.com/3.3?comp=pxoperator&kbver=1.31.0&ns=portworx' > /dev/null 2>&1
@@ -120,10 +120,11 @@ echo -e -n " ."
 kubectl apply -f 'https://install.portworx.com/3.3?operator=true&mc=false&kbver=1.31.0&ns=portworx&b=true&iop=6&c=px-cluster1&stork=true&csi=true&mon=true&tel=false&st=k8s&promop=true' > /dev/null 2>&1 
 sleep 30
 echo -e -n " ."
-kubectl wait --for condition=Ready -n portworx pod --all --timeout=2000s   > /dev/null 2>&1
+kubectl wait --for condition=Ready -n portworx pod --all --timeout=3000s   > /dev/null 2>&1
 
 # make a default storage class
 echo -e -n " ."
+until [ $(kubectl get sc | grep px-csi | wc -l | xargs) = 8 ]; do sleep 5; done
 kubectl patch storageclass px-csi-db -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}' > /dev/null 2>&1 
 
 info_ok
