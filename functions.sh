@@ -572,7 +572,7 @@ echo -e -n  " - stackrox"
 
 #--set central.exposure.loadBalancer.enabled=true
 
- until [ $(kubectl get pod -n stackrox |grep Running| wc -l) = 4 ] ; do echo -e -n "." ; sleep 2; done
+until [ $(kubectl get pod -n stackrox |grep Running| wc -l|xargs) -gt 7 ] ; do echo -e -n "." ; sleep 2; done
 
 cat <<EOF | kubectl apply -f - > /dev/null 2>&1
 apiVersion: networking.k8s.io/v1
@@ -595,7 +595,8 @@ spec:
             port:
               number: 443
 EOF
- sleep 5
+
+until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://stackrox.$domain/login )" == "200" ]]; do echo -e -n .; sleep 1; done
 
  export ROX_API_TOKEN=$(curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token)
 
