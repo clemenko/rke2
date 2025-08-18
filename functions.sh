@@ -120,7 +120,7 @@ echo -e -n " ."
 kubectl apply -f 'https://install.portworx.com/3.3?operator=true&mc=false&kbver=1.31.0&ns=portworx&b=true&iop=6&c=px-cluster1&stork=true&csi=true&mon=true&tel=false&st=k8s&promop=true' > /dev/null 2>&1 
 sleep 30
 echo -e -n " ."
-kubectl wait --for condition=Ready -n portworx pod --all --timeout=3000s   > /dev/null 2>&1
+kubectl wait --for condition=Ready -n portworx pod --all --timeout=6000s   > /dev/null 2>&1
 
 # make a default storage class
 echo -e -n " ."

@@ -12,7 +12,7 @@ set -e
 num=3
 password=Pa22word
 zone=nyc1
-size=s-4vcpu-8gb 
+size=s-8vcpu-16gb #s-4vcpu-8gb 
 # s-8vcpu-16gb
 domain=rfed.io
 
