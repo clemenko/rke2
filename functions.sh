@@ -250,9 +250,9 @@ info_ok
 
 
 echo -e -n " - px - webservices up"
-until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://central.rfed.io )" == "200" ]]; do echo -e -n .; sleep 1; done
+until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://central.rfed.io )" == "200" ]]; do echo -e -n .; sleep 5; done
 
-until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://grafana.rfed.io )" == "200" ]]; do echo -e -n .; sleep 1; done
+until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://grafana.rfed.io )" == "200" ]]; do echo -e -n .; sleep 5; done
 
 info "navigate to - "$BLUE"https://central.rfed.io "$GREEN"admin / admin"$NO_COLOR""
 info "navigate to - "$BLUE"https://grafana.rfed.io "$GREEN"admin / admin"$NO_COLOR""
