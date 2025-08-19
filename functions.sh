@@ -135,7 +135,7 @@ helm repo add portworx http://charts.portworx.io/ --force-update > /dev/null 2>&
 
 helm upgrade -i px-central portworx/px-central --namespace px-central --create-namespace --set persistentStorage.enabled=true,persistentStorage.storageClassName="px-csi-db",service.pxCentralUIServiceType="ClusterIP",pxbackup.enabled=true,pxmonitor.enabled=false,installCRDs=true > /dev/null 2>&1
 
-until [ $(kubectl get pod -n px-central | wc -l | xargs ) = 18 ]; do sleep 5; done
+until [ $(kubectl get pod -n px-central | wc -l | xargs ) = 17 ]; do sleep 5; done
 
 cat <<EOF | kubectl apply -n px-central -f - > /dev/null 2>&1 
 apiVersion: networking.k8s.io/v1
@@ -247,6 +247,12 @@ spec:
 EOF
 
 info_ok
+
+
+echo -e -n " - px - webservices up"
+until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://central.rfed.io )" == "200" ]]; do echo -e -n .; sleep 1; done
+
+until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://grafana.rfed.io )" == "200" ]]; do echo -e -n .; sleep 1; done
 
 info "navigate to - "$BLUE"https://central.rfed.io "$GREEN"admin / admin"$NO_COLOR""
 info "navigate to - "$BLUE"https://grafana.rfed.io "$GREEN"admin / admin"$NO_COLOR""
