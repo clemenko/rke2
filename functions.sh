@@ -135,7 +135,7 @@ helm repo add portworx http://charts.portworx.io/ --force-update > /dev/null 2>&
 
 helm upgrade -i px-central portworx/px-central --namespace px-central --create-namespace --set persistentStorage.enabled=true,persistentStorage.storageClassName="px-csi-db",service.pxCentralUIServiceType="ClusterIP",pxbackup.enabled=true,pxmonitor.enabled=false,installCRDs=true > /dev/null 2>&1
 
-until [ $(kubectl get pod -n px-central | wc -l | xargs ) = 17 ]; do sleep 5; done
+until [ $(kubectl get pod -n px-central | wc -l | xargs ) -gt 16 ]; do sleep 5; echo -e -n "."; done
 
 cat <<EOF | kubectl apply -n px-central -f - > /dev/null 2>&1 
 apiVersion: networking.k8s.io/v1
@@ -249,7 +249,7 @@ EOF
 info_ok
 
 
-echo -e -n " - px - webservices up"
+echo -e " - px - webservices up"
 until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://central.rfed.io )" == "200" ]]; do echo -e -n .; sleep 5; done
 
 until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://grafana.rfed.io )" == "200" ]]; do echo -e -n .; sleep 5; done
