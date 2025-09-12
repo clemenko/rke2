@@ -158,7 +158,6 @@ case "$1" in
         up) up;;
         kill) kill;;
         px) portworx;;
-        neu) neu;;
         dolist) dolist;;
         keycloak) keycloak;;
         longhorn) longhorn;;

@@ -131,9 +131,7 @@ info_ok
 
 echo -e -n " - px - adding central"
 
-helm repo add portworx http://charts.portworx.io/ --force-update > /dev/null 2>&1
-
-helm upgrade -i px-central portworx/px-central --namespace px-central --create-namespace --set persistentStorage.enabled=true,persistentStorage.storageClassName="px-csi-db",service.pxCentralUIServiceType="ClusterIP",pxbackup.enabled=true,pxmonitor.enabled=false,installCRDs=true > /dev/null 2>&1
+helm upgrade -i px-central px-central --repo http://charts.portworx.io/ -n px-central --create-namespace --set persistentStorage.enabled=true,persistentStorage.storageClassName="px-csi-db",service.pxCentralUIServiceType="ClusterIP",pxbackup.enabled=true,pxmonitor.enabled=false,installCRDs=true > /dev/null 2>&1
 
 until [ $(kubectl get pod -n px-central | wc -l | xargs ) -gt 16 ]; do sleep 5; echo -e -n "."; done
 
@@ -270,11 +268,9 @@ function rancher () {
   fi
 
   echo -e "$BLUE" "deploying rancher" "$NO_COLOR"
-  #helm repo add rancher-latest https://releases.rancher.com/server-charts/latest --force-update > /dev/null 2>&1
-  #helm repo add jetstack https://charts.jetstack.io --force-update > /dev/null 2>&1
 
   echo -e -n " - helm - cert-manager"
-  helm upgrade -i cert-manager jetstack/cert-manager -n cert-manager --create-namespace --set crds.enabled=true > /dev/null 2>&1 
+  helm upgrade -i cert-manager cert-manager --repo https://charts.jetstack.io -n cert-manager --create-namespace --set crds.enabled=true > /dev/null 2>&1 
   
   info_ok
   
@@ -288,7 +284,7 @@ function rancher () {
   kubectl -n cattle-system create secret generic tls-ca --from-file=/Users/clemenko/Dropbox/work/rfed.me/io/cacerts.pem > /dev/null 2>&1 
   # kubectl -n cattle-system create secret generic tls-ca-additional --from-file=ca-additional.pem=cacerts.pem
 
-  helm upgrade -i rancher rancher-latest/rancher -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set antiAffinity=required  --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set 'extraEnv[0].name=CATTLE_FEATURES' --set 'extraEnv[0].value=ui-sql-cache=true' > /dev/null 2>&1
+  helm upgrade -i rancher rancher --repo https://releases.rancher.com/server-charts/latest -n cattle-system --create-namespace --set hostname=rancher.$domain --set bootstrapPassword=bootStrapAllTheThings --set replicas=1 --set auditLog.level=2 --set auditLog.destination=hostPath --set auditLog.hostPath=/var/log/rancher/audit --set auditLog.maxAge=30 --set antiAffinity=required --set antiAffinity=required  --set ingress.tls.source=secret --set ingress.tls.secretName=tls-rancher-ingress --set privateCA=true --set 'extraEnv[0].name=CATTLE_FEATURES' --set 'extraEnv[0].value=ui-sql-cache=true' > /dev/null 2>&1
 
   info_ok
 
@@ -336,11 +332,10 @@ EOF
 ################################ longhorn ##############################
 function longhorn () {
   echo -e -n  " - longhorn"
-  # helm repo add longhorn https://charts.longhorn.io --force-update
-  
+
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
 
-  helm upgrade -i longhorn  longhorn/longhorn -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set defaultSettings.storageMinimalAvailablePercentage=25 --set defaultSettings.allowCollectingLonghornUsageMetrics=false --set persistence.defaultDataLocality="best-effort" > /dev/null 2>&1 #--set persistence.dataEngine=v2 --set defaultSettings.v2DataEngine=true --set defaultSettings.v1DataEngine=false     
+  helm upgrade -i longhorn longhorn --repo https://charts.longhorn.io -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set defaultSettings.storageMinimalAvailablePercentage=25 --set defaultSettings.allowCollectingLonghornUsageMetrics=false --set persistence.defaultDataLocality="best-effort" > /dev/null 2>&1 #--set persistence.dataEngine=v2 --set defaultSettings.v2DataEngine=true --set defaultSettings.v1DataEngine=false     
 
   sleep 5
 
@@ -355,71 +350,6 @@ function longhorn () {
   kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/longhorn_encryption.yml > /dev/null 2>&1
 
   info_ok
-}
-
-################################ neu ##############################
-function neu () {
-  echo -e -n  " - neuvector"
-  
-  # helm repo add neuvector https://neuvector.github.io/neuvector-helm/ --force-update
-  
-  # custom TLS certs
-  kubectl create ns neuvector > /dev/null 2>&1 
-  kubectl -n neuvector create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
-
-  kubectl -n neuvector create secret tls tls-fed-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
-
-cat <<EOF | kubectl apply -f - > /dev/null 2>&1 
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: neuvector-init
-  namespace: neuvector
-data:
-  sysinitcfg.yaml: |
-    always_reload: true
-    Cluster_Name: neuvector.$domain
-    No_Telemetry_Report: true
-    Scan_Config:
-      Auto_Scan: true
-    Scanner_Autoscale:
-      Min_Pods: 1
-      Max_Pods: 3
-  userinitcfg.yaml: |
-    always_reload: true
-    users:
-    - Fullname: admin
-      Password: $password
-      Role: admin
-      Timeout: 3600 
-EOF
-
-  export govmessage_html="PGI+WW91IGFyZSBhY2Nlc3NpbmcgYSBVLlMuIEdvdmVybm1lbnQgKFVTRykgSW5mb3JtYXRpb24gU3lzdGVtIChJUykgdGhhdCBpcyBwcm92aWRlZCBmb3IgVVNHLWF1dGhvcml6ZWQgdXNlIG9ubHkuPC9iPjxicj4KPGJyPgpCeSB1c2luZyB0aGlzIElTICh3aGljaCBpbmNsdWRlcyBhbnkgZGV2aWNlIGF0dGFjaGVkIHRvIHRoaXMgSVMpLCB5b3UgY29uc2VudCB0byB0aGUgZm9sbG93aW5nIGNvbmRpdGlvbnM6PGJyPgo8YnI+Ci1UaGUgVVNHIHJvdXRpbmVseSBpbnRlcmNlcHRzIGFuZCBtb25pdG9ycyBjb21tdW5pY2F0aW9ucyBvbiB0aGlzIElTIGZvciBwdXJwb3NlcyBpbmNsdWRpbmcsIGJ1dCBub3QgbGltaXRlZCB0bywgcGVuZXRyYXRpb24gdGVzdGluZywgQ09NU0VDIG1vbml0b3JpbmcsIG5ldHdvcmsgb3BlcmF0aW9ucyBhbmQgZGVmZW5zZSwgcGVyc29ubmVsIG1pc2NvbmR1Y3QgKFBNKSwgbGF3IGVuZm9yY2VtZW50IChMRSksIGFuZCBjb3VudGVyaW50ZWxsaWdlbmNlIChDSSkgaW52ZXN0aWdhdGlvbnMuPGJyPgo8YnI+Ci1BdCBhbnkgdGltZSwgdGhlIFVTRyBtYXkgaW5zcGVjdCBhbmQgc2VpemUgZGF0YSBzdG9yZWQgb24gdGhpcyBJUy48YnI+Cjxicj4KLUNvbW11bmljYXRpb25zIHVzaW5nLCBvciBkYXRhIHN0b3JlZCBvbiwgdGhpcyBJUyBhcmUgbm90IHByaXZhdGUsIGFyZSBzdWJqZWN0IHRvIHJvdXRpbmUgbW9uaXRvcmluZywgaW50ZXJjZXB0aW9uLCBhbmQgc2VhcmNoLCBhbmQgbWF5IGJlIGRpc2Nsb3NlZCBvciB1c2VkIGZvciBhbnkgVVNHLWF1dGhvcml6ZWQgcHVycG9zZS48YnI+Cjxicj4KLVRoaXMgSVMgaW5jbHVkZXMgc2VjdXJpdHkgbWVhc3VyZXMgKGUuZy4sIGF1dGhlbnRpY2F0aW9uIGFuZCBhY2Nlc3MgY29udHJvbHMpIHRvIHByb3RlY3QgVVNHIGludGVyZXN0cy0tbm90IGZvciB5b3VyIHBlcnNvbmFsIGJlbmVmaXQgb3IgcHJpdmFjeS48YnI+Cjxicj4KLU5vdHdpdGhzdGFuZGluZyB0aGUgYWJvdmUsIHVzaW5nIHRoaXMgSVMgZG9lcyBub3QgY29uc3RpdHV0ZSBjb25zZW50IHRvIFBNLCBMRSBvciBDSSBpbnZlc3RpZ2F0aXZlIHNlYXJjaGluZyBvciBtb25pdG9yaW5nIG9mIHRoZSBjb250ZW50IG9mIHByaXZpbGVnZWQgY29tbXVuaWNhdGlvbnMsIG9yIHdvcmsgcHJvZHVjdCwgcmVsYXRlZCB0byBwZXJzb25hbCByZXByZXNlbnRhdGlvbiBvciBzZXJ2aWNlcyBieSBhdHRvcm5leXMsIHBzeWNob3RoZXJhcGlzdHMsIG9yIGNsZXJneSwgYW5kIHRoZWlyIGFzc2lzdGFudHMuIFN1Y2ggY29tbXVuaWNhdGlvbnMgYW5kIHdvcmsgcHJvZHVjdCBhcmUgcHJpdmF0ZSBhbmQgY29uZmlkZW50aWFsLiBTZWUgVXNlciBBZ3JlZW1lbnQgZm9yIGRldGFpbHMuIDxicj4gCg=="
-
-  # clear
-  # helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set internal.certmanager.enabled=true --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain --set manager.ingress.tls=true --set manager.ingress.secretName=tls-ingress --set controller.federation.mastersvc.ingress.enabled=true --set controller.federation.mastersvc.ingress.host=nv-api.rfed.io --set controller.federation.mastersvc.ingress.tls=true --set controller.federation.mastersvc.ingress.secretName=tls-ingress --set controller.federation.mastersvc.type=ClusterIP > /dev/null 2>&1
-
-  # Unclass
-  helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set manager.env.envs[0].name=CUSTOM_PAGE_HEADER_COLOR --set manager.env.envs[0].value="#007a33" --set manager.env.envs[1].name=CUSTOM_PAGE_HEADER_CONTENT --set manager.env.envs[1].value="VU5DTEFTU0lGSUVELy9GT1VPCg==" --set manager.env.envs[2].name=CUSTOM_PAGE_FOOTER_COLOR --set manager.env.envs[2].value="#007a33" --set manager.env.envs[3].name=CUSTOM_PAGE_FOOTER_CONTENT --set manager.env.envs[3].value="VU5DTEFTU0lGSUVELy9GT1VPCg==" --set manager.env.envs[4].name=CUSTOM_EULA_POLICY --set manager.env.envs[4].value=$govmessage_html --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain  --set manager.ingress.tls=true --set manager.ingress.secretName=tls-ingress  > /dev/null 2>&1
-
-  # federation 
-  # --set controller.federation.mastersvc.ingress.enabled=true --set controller.federation.mastersvc.ingress.host=nv-api.rfed.io --set controller.federation.mastersvc.ingress.tls=true --set controller.federation.mastersvc.ingress.secretName=tls-fed-ingress --set controller.federation.mastersvc.type=ClusterIP 
-
-  # TS
-  # helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set controller.pvc.enabled=true --set controller.pvc.capacity=500Mi --set internal.certmanager.enabled=true --set manager.env.envs[0].name=CUSTOM_PAGE_HEADER_COLOR --set manager.env.envs[0].value="#fce83a" --set manager.env.envs[1].name=CUSTOM_PAGE_HEADER_CONTENT --set manager.env.envs[1].value="VE9QIFNFQ1JFVC8vU0NJCg==" --set manager.env.envs[2].name=CUSTOM_PAGE_FOOTER_COLOR --set manager.env.envs[2].value="#fce83a" --set manager.env.envs[3].name=CUSTOM_PAGE_FOOTER_CONTENT --set manager.env.envs[3].value="VE9QIFNFQ1JFVC8vU0NJCg==" --set manager.env.envs[4].name=CUSTOM_EULA_POLICY --set manager.env.envs[4].value=$govmessage_html --set manager.ingress.enabled=true --set manager.ingress.host=neuvector.$domain --set manager.ingress.secretName=tls-ingress --set controller.federation.mastersvc.ingress.enabled=true --set controller.federation.mastersvc.ingress.host=nv-api.rfed.io --set controller.federation.mastersvc.ingress.tls=true --set controller.federation.mastersvc.ingress.secretName=tls-ingress --set controller.federation.mastersvc.type=ClusterIP > /dev/null 2>&1
-
-  until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://neuvector.$domain/auth -d '{"isRancherSSOUrl":false, "username": "admin", "password": "'$password'"}')" == "200" ]]; do echo -e -n .; sleep 1; done
-
-  TOKEN=$(curl -sk -H "Content-Type: application/json" https://neuvector.$domain/auth -d '{"isRancherSSOUrl":false, "username": "admin", "password": "'$password'"}' | jq  -r .token.token)
-
-  curl -sk -H "Content-Type: application/json" -H 'Token: '$TOKEN https://neuvector.$domain/eula -d '{"accepted":true}' > /dev/null 2>&1
-
-  info_ok
-
- # federation managed
- # helm upgrade -i neuvector -n neuvector neuvector/core --create-namespace --set k3s.enabled=true --set manager.ingress.enabled=true --set manager.ingress.host=neuvector2.rfed.io --set manager.ingress.tls=true --set manager.ingress.secretName=tls-ingress --set controller.federation.managedsvc.ingress.enabled=true --set controller.federation.managedsvc.ingress.host=nv-down1.rfed.io --set controller.federation.managedsvc.ingress.tls=true --set controller.federation.managedsvc.ingress.secretName=tls-ingress --set controller.federation.managedsvc.type=ClusterIP
-
- # https://gist.github.com/clemenko/385d6ce697e1f7a4601dbfc24d9a87e2
 }
 
 ############################# fleet ################################
@@ -446,11 +376,8 @@ function demo () {
   # echo -e -n " - ghost ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/refs/heads/master/ghost.yaml > /dev/null 2>&1; info_ok
   
   echo -e -n " - minio"
-  helm repo add minio https://charts.min.io/ --force-update
-  #kubectl create ns minio > /dev/null 2>&1 
-  # kubectl -n minio create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
 
-  helm upgrade -i minio minio/minio -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain --set ingress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set consoleIngress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" > /dev/null 2>&1
+  helm upgrade -i minio minio --repo https://charts.min.io -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain --set ingress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set consoleIngress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" > /dev/null 2>&1
   info_ok
 
    # --set consoleIngress.tls[0].secretName=tls-ingress --set ingress.tls[0].secretName=tls-ingress 
@@ -460,11 +387,7 @@ function demo () {
 #  info_ok
 
 #  echo -e -n " - harbor"
-  # helm repo add harbor https://helm.goharbor.io --force-update
-#  kubectl create ns harbor > /dev/null 2>&1 
-#  kubectl -n harbor create secret tls tls-ingress --cert=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.cert --key=/Users/clemenko/Dropbox/work/rfed.me/io/star.rfed.io.key > /dev/null 2>&1 
-
-#  helm upgrade -i harbor harbor/harbor -n harbor --create-namespace --set expose.tls.certSource=secret --set expose.tls.secret.secretName=tls-ingress --set expose.tls.enabled=false --set expose.tls.auto.commonName=harbor.$domain --set expose.ingress.hosts.core=harbor.$domain --set persistence.enabled=false --set harborAdminPassword=$password --set externalURL=http://harbor.$domain --set notary.enabled=false > /dev/null 2>&1;
+#  helm upgrade -i harbor harbor --repo https://helm.goharbor.io -n harbor --create-namespace --set expose.tls.certSource=secret --set expose.tls.secret.secretName=tls-ingress --set expose.tls.enabled=false --set expose.tls.auto.commonName=harbor.$domain --set expose.ingress.hosts.core=harbor.$domain --set persistence.enabled=false --set harborAdminPassword=$password --set externalURL=http://harbor.$domain --set notary.enabled=false > /dev/null 2>&1;
 #  info_ok
 
   echo -e -n " - gitea"
@@ -569,12 +492,10 @@ function keycloak () {
 
 ################################ stackrox ##############################
 function rox () {
-# https://github.com/stackrox/stackrox#quick-installation-using-helm
-# helm repo add stackrox https://raw.githubusercontent.com/stackrox/helm-charts/main/opensource/ --force-update
 
 echo -e -n  " - stackrox"
 
- helm upgrade -i stackrox-central-services stackrox/stackrox-central-services -n stackrox --create-namespace --set central.adminPassword.value=$password --set central.resources.requests.memory=1Gi --set central.resources.limits.memory=2Gi --set central.db.resources.requests.memory=1Gi --set central.db.resources.limits.memory=2Gi --set scanner.autoscaling.disable=true --set scanner.replicas=1 --set scanner.resources.requests.memory=500Mi --set scanner.resources.limits.memory=2500Mi --set central.resources.requests.cpu=1 --set central.resources.limits.cpu=1 --set central.db.resources.requests.cpu=500m --set central.db.resources.limits.cpu=1 --set central.persistence.none=true --set central.db.persistence.persistentVolumeClaim.size=1Gi > /dev/null 2>&1
+ helm upgrade -i stackrox-central-services stackrox-central-services --repo https://raw.githubusercontent.com/stackrox/helm-charts/main/opensource/ -n stackrox --create-namespace --set central.adminPassword.value=$password --set central.resources.requests.memory=1Gi --set central.resources.limits.memory=2Gi --set central.db.resources.requests.memory=1Gi --set central.db.resources.limits.memory=2Gi --set scanner.autoscaling.disable=true --set scanner.replicas=1 --set scanner.resources.requests.memory=500Mi --set scanner.resources.limits.memory=2500Mi --set central.resources.requests.cpu=1 --set central.resources.limits.cpu=1 --set central.db.resources.requests.cpu=500m --set central.db.resources.limits.cpu=1 --set central.persistence.none=true --set central.db.persistence.persistentVolumeClaim.size=1Gi > /dev/null 2>&1
 
 #--set central.exposure.loadBalancer.enabled=true
 
@@ -608,7 +529,7 @@ until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{htt
 
  curl -ks https://stackrox.$domain/v1/cluster-init/init-bundles -H 'accept: application/json, text/plain, */*' -H "authorization: Bearer $ROX_API_TOKEN" -H 'content-type: application/json' -d '{"name":"rke2"}' |jq -r .helmValuesBundle | base64 -D > stackrox-init-bundle.yaml
 
- helm upgrade --install --create-namespace -n stackrox stackrox-secured-cluster-services stackrox/stackrox-secured-cluster-services -f stackrox-init-bundle.yaml --set clusterName=rke2 --set centralEndpoint="central.stackrox.svc:443" --set sensor.resources.requests.memory=500Mi --set sensor.resources.requests.cpu=500m --set sensor.resources.limits.memory=500Mi --set sensor.resources.limits.cpu=500m > /dev/null 2>&1
+ helm upgrade --install --create-namespace -n stackrox stackrox-secured-cluster-services stackrox-secured-cluster-services --repo https://raw.githubusercontent.com/stackrox/helm-charts/main/opensource/ -f stackrox-init-bundle.yaml --set clusterName=rke2 --set centralEndpoint="central.stackrox.svc:443" --set sensor.resources.requests.memory=500Mi --set sensor.resources.requests.cpu=500m --set sensor.resources.limits.memory=500Mi --set sensor.resources.limits.cpu=500m > /dev/null 2>&1
 
  rm -rf stackrox-init-bundle.yaml 
 
