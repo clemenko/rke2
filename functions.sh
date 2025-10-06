@@ -120,7 +120,7 @@ echo -e -n " ."
 kubectl apply -f 'https://install.portworx.com/3.3?operator=true&mc=false&kbver=1.31.0&ns=portworx&b=true&iop=6&c=px-cluster1&stork=true&csi=true&mon=true&tel=false&st=k8s&promop=true' > /dev/null 2>&1 
 sleep 30
 echo -e -n " ."
-kubectl wait --for condition=Ready -n portworx pod --all --timeout=6000s   > /dev/null 2>&1
+kubectl wait --for condition=Ready -n portworx pod --all --timeout=60000s   > /dev/null 2>&1
 
 # make a default storage class
 echo -e -n " ."
@@ -335,7 +335,7 @@ function longhorn () {
 
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
 
-  helm upgrade -i longhorn longhorn --repo https://charts.longhorn.io -n longhorn-system --create-namespace --set ingress.enabled=true --set ingress.host=longhorn.$domain --set defaultSettings.storageMinimalAvailablePercentage=25 --set defaultSettings.allowCollectingLonghornUsageMetrics=false --set persistence.defaultDataLocality="best-effort" > /dev/null 2>&1 #--set persistence.dataEngine=v2 --set defaultSettings.v2DataEngine=true --set defaultSettings.v1DataEngine=false     
+  helm upgrade -i longhorn longhorn --repo https://charts.longhorn.io -n longhorn-system --create-namespace --set ingress.enabled=true,ingress.host=longhorn.$domain,defaultSettings.allowCollectingLonghornUsageMetrics=false,persistence.defaultDataLocality="best-effort" > /dev/null 2>&1 #--set persistence.dataEngine=v2 --set defaultSettings.v2DataEngine=true --set defaultSettings.v1DataEngine=false     
 
   sleep 5
 
