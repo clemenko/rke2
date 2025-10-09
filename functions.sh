@@ -143,7 +143,7 @@ metadata:
   namespace: px-central
 spec:
   rules:
-  - host: central.rfed.io
+  - host: central.$domain
     http:
       paths:
       - backend:
@@ -232,7 +232,7 @@ metadata:
   name: grafana
 spec:
   rules:
-  - host: grafana.rfed.io
+  - host: grafana.$domain
     http:
       paths:
       - backend:
@@ -248,14 +248,14 @@ info_ok
 
 
 echo -e -n " - px - webservices up"
-until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://central.rfed.io )" == "200" ]]; do echo -e -n .; sleep 5; done
+until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://central.$domain )" == "200" ]]; do echo -e -n .; sleep 5; done
 
-until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://grafana.rfed.io )" == "200" ]]; do echo -e -n .; sleep 5; done
+until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://grafana.$domain )" == "200" ]]; do echo -e -n .; sleep 5; done
 
 echo -e ""
 
-info "navigate to - "$BLUE"https://central.rfed.io "$GREEN"admin / admin"$NO_COLOR""
-info "navigate to - "$BLUE"https://grafana.rfed.io "$GREEN"admin / admin"$NO_COLOR""
+info "navigate to - "$BLUE"https://central.$domain "$GREEN"admin / admin"$NO_COLOR""
+info "navigate to - "$BLUE"https://grafana.$domain "$GREEN"admin / admin"$NO_COLOR""
 
 }
 
