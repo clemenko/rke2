@@ -28,7 +28,7 @@ function usage () {
   echo -e ""
   echo -e " Usage: $0 {up|kill|tl|rancher|demo|full}"
   echo -e ""
-  echo -e "${BLUE} $0 up # build the vms ${NO_COLOR}"
+  echo -e " ${BLUE} $0 up # build the vms ${NO_COLOR}"
   echo -e " ${RED}$0 rancher # rancher will build cluster if not present${NO_COLOR}"
   echo -e " $0 demo # deploy demo apps"
   echo -e " $0 fleet # deploy fleet apps"
