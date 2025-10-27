@@ -44,7 +44,7 @@ function usage () {
 function centos_packages () {
 # adding centos packages.
 echo -e -n " - adding os packages"
-pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utilsyum install -y iptables-services iptables-utils; systemctl enable --now iscsid; yum update openssh -y; #yum update -y' > /dev/null 2>&1
+pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utils; yum install -y iptables-services iptables-utils; systemctl enable --now iscsid; yum update openssh -y; #yum update -y' > /dev/null 2>&1
 info_ok
 }
 
@@ -377,7 +377,7 @@ function demo () {
   
   echo -e -n " - minio"
 
-  helm upgrade -i minio minio --repo https://charts.min.io -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain --set ingress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set consoleIngress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" > /dev/null 2>&1
+  helm upgrade -i minio minio --repo https://charts.min.io -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain --set ingress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set consoleIngress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set image.repository=cgr.dev/chainguard/minio --set image.tag=latest > /dev/null 2>&1
   info_ok
 
    # --set consoleIngress.tls[0].secretName=tls-ingress --set ingress.tls[0].secretName=tls-ingress 
