@@ -164,6 +164,5 @@ case "$1" in
         rancher) rancher;;
         demo) demo;;
         fleet) fleet;;
-        rox) rox;;
         *) usage;;
 esac
