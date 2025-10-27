@@ -369,7 +369,7 @@ function fleet () {
 function demo () {
   echo -e " demo-ing"
 
-  # echo -e -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; info_ok
+  echo -e -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; info_ok
 
   echo -e -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple_nginx.yml > /dev/null 2>&1; info_ok
   
@@ -378,12 +378,6 @@ function demo () {
   echo -e -n " - minio"
   helm upgrade -i minio minio --repo https://charts.min.io -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain --set ingress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set consoleIngress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set image.repository=cgr.dev/chainguard/minio --set image.tag=latest > /dev/null 2>&1
   info_ok
-
-   # --set consoleIngress.tls[0].secretName=tls-ingress --set ingress.tls[0].secretName=tls-ingress 
-
-#  echo -e -n " - gitness"
-#  curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/gitness.yaml  | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
-#  info_ok
 
 #  echo -e -n " - harbor"
 #  helm upgrade -i harbor harbor --repo https://helm.goharbor.io -n harbor --create-namespace --set expose.tls.certSource=secret --set expose.tls.secret.secretName=tls-ingress --set expose.tls.enabled=false --set expose.tls.auto.commonName=harbor.$domain --set expose.ingress.hosts.core=harbor.$domain --set persistence.enabled=false --set harborAdminPassword=$password --set externalURL=http://harbor.$domain --set notary.enabled=false > /dev/null 2>&1;
@@ -419,9 +413,6 @@ function keycloak () {
   # kubectl -n keycloak create secret generic tls-ca --from-file=/Users/clemenko/Dropbox/work/rfed.me/io/cacerts.pem > /dev/null 2>&1 
 
   curl -s https://raw.githubusercontent.com/clemenko/k8s_yaml/master/keycloak.yml  | sed "s/rfed.xx/$domain/g" | kubectl apply -f - > /dev/null 2>&1
-
-  #helm upgrade -i keycloak  bitnami/keycloak --namespace keycloak --create-namespace --set auth.adminUser=admin --set auth.adminPassword=Pa22word > /dev/null 2>&1
-  # --set ingress.enabled=true --set ingress.hostname=keycloak.$domain --set ingress.tls=true --set tls.enabled=true --set httpRelativePath="/"
   
   info_ok
   
@@ -440,7 +431,6 @@ function keycloak () {
 
   # add client
   curl -sk -X POST https://$KEY_URL/admin/realms/rancher/clients -H "authorization: Bearer $key_token" -H 'accept: application/json, text/plain, */*' -H 'content-type: application/json;charset=UTF-8' -d '{"enabled":true,"attributes":{},"redirectUris":[],"clientId":"rancher","protocol":"openid-connect","publicClient": false,"redirectUris":["https://'$RANCHER_URL'/verify-auth"]}'
-  #,"implicitFlowEnabled":true
 
   # get client id
   export client_id=$(curl -sk  https://$KEY_URL/admin/realms/rancher/clients/ -H "authorization: Bearer $key_token"  | jq -r '.[] | select(.clientId=="rancher") | .id')
@@ -488,53 +478,6 @@ function keycloak () {
   info_ok
 
 }
-
-################################ stackrox ##############################
-function rox () {
-
-echo -e -n  " - stackrox"
-
- helm upgrade -i stackrox-central-services stackrox-central-services --repo https://raw.githubusercontent.com/stackrox/helm-charts/main/opensource/ -n stackrox --create-namespace --set central.adminPassword.value=$password --set central.resources.requests.memory=1Gi --set central.resources.limits.memory=2Gi --set central.db.resources.requests.memory=1Gi --set central.db.resources.limits.memory=2Gi --set scanner.autoscaling.disable=true --set scanner.replicas=1 --set scanner.resources.requests.memory=500Mi --set scanner.resources.limits.memory=2500Mi --set central.resources.requests.cpu=1 --set central.resources.limits.cpu=1 --set central.db.resources.requests.cpu=500m --set central.db.resources.limits.cpu=1 --set central.persistence.none=true --set central.db.persistence.persistentVolumeClaim.size=1Gi > /dev/null 2>&1
-
-#--set central.exposure.loadBalancer.enabled=true
-
-until [ $(kubectl get pod -n stackrox |grep Running| wc -l|xargs) -gt 7 ] ; do echo -e -n "." ; sleep 2; done
-
-cat <<EOF | kubectl apply -f - > /dev/null 2>&1
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: stackrox
-  namespace: stackrox
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
-spec:
-  rules:
-  - host: stackrox.$domain
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: central
-            port:
-              number: 443
-EOF
-
-until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://stackrox.$domain/login )" == "200" ]]; do echo -e -n .; sleep 1; done
-
- export ROX_API_TOKEN=$(curl -sk -X POST -u admin:$password https://stackrox.$domain/v1/apitokens/generate -d '{"name":"admin","role":null,"roles":["Admin"]}'| jq -r .token)
-
- curl -ks https://stackrox.$domain/v1/cluster-init/init-bundles -H 'accept: application/json, text/plain, */*' -H "authorization: Bearer $ROX_API_TOKEN" -H 'content-type: application/json' -d '{"name":"rke2"}' |jq -r .helmValuesBundle | base64 -D > stackrox-init-bundle.yaml
-
- helm upgrade --install --create-namespace -n stackrox stackrox-secured-cluster-services stackrox-secured-cluster-services --repo https://raw.githubusercontent.com/stackrox/helm-charts/main/opensource/ -f stackrox-init-bundle.yaml --set clusterName=rke2 --set centralEndpoint="central.stackrox.svc:443" --set sensor.resources.requests.memory=500Mi --set sensor.resources.requests.cpu=500m --set sensor.resources.limits.memory=500Mi --set sensor.resources.limits.cpu=500m > /dev/null 2>&1
-
- rm -rf stackrox-init-bundle.yaml 
-
- info_ok
-}
-
 
 # PSA notes
 # kubectl label ns spark pod-security.kubernetes.io/audit=privileged pod-security.kubernetes.io/enforce=privileged pod-security.kubernetes.io/warn=privileged
