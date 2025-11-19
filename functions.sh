@@ -332,7 +332,9 @@ function longhorn () {
 
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
 
-  helm upgrade -i longhorn longhorn --repo https://charts.longhorn.io -n longhorn-system --create-namespace --set ingress.enabled=true,ingress.host=longhorn.$domain,defaultSettings.allowCollectingLonghornUsageMetrics=false,persistence.defaultDataLocality="best-effort" --set persistence.dataEngine=v2 --set defaultSettings.v2DataEngine=true --set defaultSettings.v1DataEngine=false > /dev/null 2>&1 
+  helm upgrade -i longhorn longhorn --repo https://charts.longhorn.io -n longhorn-system --create-namespace --set ingress.enabled=true,ingress.host=longhorn.$domain  > /dev/null 2>&1 
+  
+  #,defaultSettings.allowCollectingLonghornUsageMetrics=false,persistence.defaultDataLocality="best-effort" --set persistence.dataEngine=v2 --set defaultSettings.v2DataEngine=true --set defaultSettings.v1DataEngine=false > /dev/null 2>&1 
 
   sleep 5
 
