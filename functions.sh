@@ -110,14 +110,14 @@ info_ok
 echo -e -n " - px - adding operator and storagecluster - "$RED"can take about 15 min"$NO_COLOR""
 # operator
 echo -e -n " ."
-kubectl apply -f 'https://install.portworx.com/3.3?comp=pxoperator&kbver=1.31.0&ns=portworx' > /dev/null 2>&1
+kubectl apply -f 'https://install.portworx.com/3.5?comp=pxoperator&kbver=1.31.0&ns=portworx' > /dev/null 2>&1
 sleep 15
 echo -e -n " ."
 kubectl wait --for condition=containersready -n portworx pod --all > /dev/null 2>&1
 
 # StorageCluster spec
 echo -e -n " ."
-kubectl apply -f 'https://install.portworx.com/3.3?operator=true&mc=false&kbver=1.31.0&ns=portworx&b=true&iop=6&c=px-cluster1&stork=true&csi=true&mon=true&tel=false&st=k8s&promop=true' > /dev/null 2>&1 
+kubectl apply -f 'https://install.portworx.com/3.5?operator=true&mc=false&kbver=1.31.0&ns=portworx&b=true&iop=6&c=px-cluster1&stork=true&csi=true&mon=true&tel=false&st=k8s&promop=true&aut=false' > /dev/null 2>&1 
 sleep 60
 echo -e -n " ."
 kubectl wait --for condition=Ready -n portworx pod --all --timeout=60000s   > /dev/null 2>&1
@@ -131,7 +131,25 @@ info_ok
 
 echo -e -n " - px - adding central"
 
-helm upgrade -i px-central px-central --repo http://charts.portworx.io/ -n px-central --create-namespace --set persistentStorage.enabled=true,persistentStorage.storageClassName="px-csi-db",service.pxCentralUIServiceType="ClusterIP",pxbackup.enabled=true,pxmonitor.enabled=false,installCRDs=true > /dev/null 2>&1
+kubectl create ns px-central
+
+cat <<EOF | kubectl apply -f - 
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pxc-credentials
+  namespace: px-central
+data:
+  mongodb-px-backup-password: UGEyMndvcmQ=
+  mongodb-root-password: UGEyMndvcmQ=
+  mongodb-replica-set-key: UGEyMndvcmQ=
+  postgresql-password: UGEyMndvcmQ=
+  mysql-password: UGEyMndvcmQ=
+EOF
+
+helm upgrade -i px-central px-central --repo http://charts.portworx.io/ -n px-central --create-namespace --set persistentStorage.storageClassName="px-csi-db",pxbackup.enabled=true > /dev/null 2>&1 
+
+#helm upgrade -i px-central px-central --repo http://charts.portworx.io/ -n px-central --create-namespace --set persistentStorage.enabled=true,persistentStorage.storageClassName="px-csi-db",pxbackup.deployDedicatedMonitoringSystem=false,pxbackup.prometheusEndpoint="http://px-prometheus.portworx.svc:9090",pxbackup.usePxBackupEmailAlertTemplate=false,pxbackup.enabled=true
 
 until [ $(kubectl get pod -n px-central | wc -l | xargs ) -gt 16 ]; do sleep 5; echo -e -n "."; done
 
@@ -159,19 +177,19 @@ info_ok
 
 echo -e -n " - px - adding grafana"
 
-export PX_URL="https://docs.portworx.com/samples/portworx-enterprise/k8s/pxc"
+export PX_URL="https://docs.portworx.com/portworx-enterprise/samples/k8s/pxc/"
 
 # create config maps
-kubectl create configmap -n portworx  grafana-dashboard-config --from-literal=grafana-dashboard-config.yaml="$(curl -sk $PX_URL/grafana-dashboard-config.yaml)" > /dev/null 2>&1
-kubectl create configmap -n portworx  grafana-source-config --from-literal=grafana-dashboard-config.yaml="$(curl -sk $PX_URL/grafana-datasource.yaml)" > /dev/null 2>&1
+kubectl create configmap -n portworx  grafana-dashboard-config --from-literal=grafana-dashboard-config.yaml="$(curl -skL $PX_URL/grafana-dashboard-config.yaml)" > /dev/null 2>&1
+kubectl create configmap -n portworx  grafana-source-config --from-literal=grafana-dashboard-config.yaml="$(curl -skL $PX_URL/grafana-datasource.yaml)" > /dev/null 2>&1
 
 # dashboards
 kubectl -n portworx create configmap grafana-dashboards \
---from-literal=portworx-cluster-dashboard.json="$(curl -sk $PX_URL/portworx-cluster-dashboard.json)" \
---from-literal=portworx-performance-dashboard.json="$(curl -sk $PX_URL/portworx-performance-dashboard.json)" \
---from-literal=portworx-node-dashboard.json="$(curl -sk $PX_URL/portworx-node-dashboard.json)" \
---from-literal=portworx-volume-dashboard.json="$(curl -sk $PX_URL/portworx-volume-dashboard.json)" \
---from-literal=portworx-etcd-dashboard.json="$(curl -sk $PX_URL/portworx-etcd-dashboard.json)" > /dev/null 2>&1
+--from-literal=portworx-cluster-dashboard.json="$(curl -skL $PX_URL/portworx-cluster-dashboard.json)" \
+--from-literal=portworx-performance-dashboard.json="$(curl -skL $PX_URL/portworx-performance-dashboard.json)" \
+--from-literal=portworx-node-dashboard.json="$(curl -skL $PX_URL/portworx-node-dashboard.json)" \
+--from-literal=portworx-volume-dashboard.json="$(curl -skL $PX_URL/portworx-volume-dashboard.json)" \
+--from-literal=portworx-etcd-dashboard.json="$(curl -skL $PX_URL/portworx-etcd-dashboard.json)" > /dev/null 2>&1
 
 # install with ingress
 cat << EOF | kubectl apply -n portworx -f - > /dev/null 2>&1
