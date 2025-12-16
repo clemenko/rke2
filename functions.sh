@@ -147,9 +147,7 @@ data:
   mysql-password: UGEyMndvcmQ=
 EOF
 
-helm upgrade -i px-central px-central --repo http://charts.portworx.io/ -n px-central --create-namespace --set persistentStorage.storageClassName="px-csi-db",pxbackup.enabled=true > /dev/null 2>&1 
-
-#helm upgrade -i px-central px-central --repo http://charts.portworx.io/ -n px-central --create-namespace --set persistentStorage.enabled=true,persistentStorage.storageClassName="px-csi-db",pxbackup.deployDedicatedMonitoringSystem=false,pxbackup.prometheusEndpoint="http://px-prometheus.portworx.svc:9090",pxbackup.usePxBackupEmailAlertTemplate=false,pxbackup.enabled=true
+helm upgrade -i px-central px-central --repo http://charts.portworx.io/ -n px-central --create-namespace --set persistentStorage.storageClassName="px-csi-db",pxbackup.enabled=true --skip-crds > /dev/null 2>&1 
 
 until [ $(kubectl get pod -n px-central | wc -l | xargs ) -gt 16 ]; do sleep 5; echo -e -n "."; done
 
@@ -264,7 +262,6 @@ EOF
 
 info_ok
 
-
 echo -e -n " - px - webservices up"
 until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{http_code}' https://central.$domain )" == "200" ]]; do echo -e -n .; sleep 5; done
 
@@ -272,7 +269,7 @@ until [[ "$(curl -skL -H "Content-Type: application/json" -o /dev/null -w '%{htt
 
 echo -e ""
 
-info "navigate to - "$BLUE"https://central.$domain "$GREEN"admin / admin"$NO_COLOR""
+info "navigate to - "$BLUE"https://central.$domain "$GREEN"admin / $(kubectl get secret pxcentral-keycloak-http -n px-central -o jsonpath="{.data.password}" | base64 --decode) "$NO_COLOR""
 info "navigate to - "$BLUE"https://grafana.$domain "$GREEN"admin / admin"$NO_COLOR""
 
 }
