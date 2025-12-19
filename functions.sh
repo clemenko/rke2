@@ -349,7 +349,7 @@ function longhorn () {
 
   helm upgrade -i longhorn longhorn --repo https://charts.longhorn.io -n longhorn-system --create-namespace --set ingress.enabled=true,ingress.host=longhorn.$domain  > /dev/null 2>&1 
   
-  #,defaultSettings.allowCollectingLonghornUsageMetrics=false,persistence.defaultDataLocality="best-effort" --set persistence.dataEngine=v2 --set defaultSettings.v2DataEngine=true --set defaultSettings.v1DataEngine=false > /dev/null 2>&1 
+  #,defaultSettings.allowCollectingLonghornUsageMetrics=false,persistence.defaultDataLocality="best-effort",persistence.dataEngine=v2,defaultSettings.v2DataEngine=true,defaultSettings.v1DataEngine=false > /dev/null 2>&1 
 
   sleep 5
 
