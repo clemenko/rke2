@@ -133,7 +133,7 @@ echo -e -n " - px - adding central"
 
 kubectl create ns px-central
 
-cat <<EOF | kubectl apply -f - 
+kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Secret
 metadata:
@@ -151,7 +151,7 @@ helm upgrade -i px-central px-central --repo http://charts.portworx.io/ -n px-ce
 
 until [ $(kubectl get pod -n px-central | wc -l | xargs ) -gt 16 ]; do sleep 5; echo -e -n "."; done
 
-cat <<EOF | kubectl apply -n px-central -f - > /dev/null 2>&1 
+kubectl apply -n px-central -f - << EOF > /dev/null 2>&1 
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -190,7 +190,7 @@ kubectl -n portworx create configmap grafana-dashboards \
 --from-literal=portworx-etcd-dashboard.json="$(curl -skL $PX_URL/portworx-etcd-dashboard.json)" > /dev/null 2>&1
 
 # install with ingress
-cat << EOF | kubectl apply -n portworx -f - > /dev/null 2>&1
+kubectl apply -n portworx -f - << EOF > /dev/null 2>&1
 apiVersion: v1
 kind: Service
 metadata:
@@ -308,7 +308,7 @@ function rancher () {
   info_ok
 
   echo -e -n " - bootstrapping"
-cat <<EOF | kubectl apply -f -  > /dev/null 2>&1
+kubectl apply -f -  << EOF > /dev/null 2>&1
 apiVersion: management.cattle.io/v3
 kind: Setting
 metadata:
@@ -331,7 +331,7 @@ EOF
   info_ok
 
   # class banners
-cat <<EOF | kubectl apply -f -  > /dev/null 2>&1
+kubectl apply -f - << EOF > /dev/null 2>&1
 apiVersion: management.cattle.io/v3
 kind: Setting
 metadata:
