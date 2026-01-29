@@ -58,7 +58,7 @@ for i in $(seq 1 $num); do build_list="$build_list $prefix$i"; done
 
 #build VMS
 echo -e -n " - building vms -$build_list"
-doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys 30:98:4f:c5:47:c2:88:28:fe:3c:23:cd:52:49:51:01 --wait > /dev/null 2>&1 || fatal "vms did not build"
+doctl compute droplet create $build_list --region $zone --image $image --size $size --ssh-keys 7532 --wait > /dev/null 2>&1 || fatal "vms did not build"
 info_ok
 
 #check for SSH
