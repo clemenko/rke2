@@ -10,12 +10,12 @@ Direct Downloads
 
 ## RKE2 STIG tl:dr
 
-### config.yaml
+### server config.yaml
 
 `/etc/rancher/rke2/config.yaml`
 
 ```yaml
-profile: cis # for 1.28 and older cis-1.23
+profile: cis-1.23
 selinux: true
 secrets-encryption: true
 token: bootstrapAllTheThings
@@ -49,6 +49,24 @@ kubelet-arg:
 - authorization-mode=Webhook
 - streaming-connection-idle-timeout=5m
 - max-pods=400
+- anonymous-auth=false
+```
+
+### agent config.yaml
+
+
+```yaml
+selinux: true
+server: https://SERVER3:9345
+token: bootstrapAllTheThings
+profile: cis-1.23
+kubelet-arg:
+- protect-kernel-defaults=true
+- read-only-port=0
+- authorization-mode=Webhook
+- streaming-connection-idle-timeout=5m
+- max-pods=400
+- anonymous-auth=false
 ```
 
 ### Audit Policy
