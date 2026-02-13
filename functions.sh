@@ -44,7 +44,8 @@ function usage () {
 function centos_packages () {
 # adding centos packages.
 echo -e -n " - adding os packages"
-pdsh -l root -w $host_list 'echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utils iptables-services iptables-utils device-mapper-multipath; systemctl enable --now iscsid; yum update openssh -y; #yum update -y' > /dev/null 2>&1
+# future use dnf install kernel-modules-extra-$(uname -r) -y;
+pdsh -l root -w $host_list 'dnf install -y https://download.rockylinux.org/vault/rocky/10.0/BaseOS/x86_64/os/Packages/k/kernel-modules-6.12.0-55.14.1.el10_0.x86_64.rpm https://download.rockylinux.org/vault/rocky/10.0/BaseOS/x86_64/os/Packages/k/kernel-modules-extra-6.12.0-55.14.1.el10_0.x86_64.rpm; modprobe ip_tables; echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utils iptables-services iptables-utils device-mapper-multipath; systemctl enable --now iscsid; yum update openssh -y; #yum update -y' > /dev/null 2>&1
 info_ok
 }
 

@@ -17,7 +17,7 @@ size=s-4vcpu-8gb
 domain=rfed.io
 
 #image=ubuntu-22-04-x64
-image=rockylinux-9-x64
+image=rockylinux-10-x64
 
 # rancher / k8s
 prefix=rke # no rke k3s
@@ -25,7 +25,6 @@ k8s_version=stable #latest
 # curl -s https://update.rke2.io/v1-release/channels | jq '.data[] | select(.id=="stable") | .latest'
 
 ######  NO MOAR EDITS #######
-#export PDSH_RCMD_TYPE=ssh
 
 #better error checking
 command -v doctl >/dev/null 2>&1 || { fatal "Doctl was not found. Please install" ; }
@@ -39,9 +38,6 @@ command -v kubectl >/dev/null 2>&1 || { fatal "Kubectl was not found. Please ins
 function dolist () { doctl compute droplet list --no-header|grep $prefix |sort -k 2; }
 
 source functions.sh
-
-# update helm
-helm repo update > /dev/null 2>&1
 
 ################################# up ################################
 function up () {
