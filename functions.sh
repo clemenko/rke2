@@ -26,7 +26,7 @@ function usage () {
   echo -e ""
   echo -e "-------------------------------------------------"
   echo -e ""
-  echo -e " Usage: $0 {up|kill|tl|rancher|demo|full}"
+  echo -e " Usage: $0 {up|kill|rancher|demo|full}"
   echo -e ""
   echo -e " ${BLUE} $0 up # build the vms ${NO_COLOR}"
   echo -e " ${RED}$0 rancher # rancher will build cluster if not present${NO_COLOR}"
@@ -45,7 +45,7 @@ function centos_packages () {
 # adding centos packages.
 echo -e -n " - adding os packages"
 # future use dnf install kernel-modules-extra-$(uname -r) -y;
-pdsh -l root -w $host_list 'dnf install -y https://download.rockylinux.org/vault/rocky/10.0/BaseOS/x86_64/os/Packages/k/kernel-modules-6.12.0-55.14.1.el10_0.x86_64.rpm https://download.rockylinux.org/vault/rocky/10.0/BaseOS/x86_64/os/Packages/k/kernel-modules-extra-6.12.0-55.14.1.el10_0.x86_64.rpm; modprobe ip_tables; echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utils iptables-services iptables-utils device-mapper-multipath; systemctl enable --now iscsid; yum update openssh -y; #yum update -y' > /dev/null 2>&1
+pdsh -l root -w $host_list 'dnf install -y https://download.rockylinux.org/vault/rocky/10.0/BaseOS/x86_64/os/Packages/k/kernel-modules-6.12.0-55.14.1.el10_0.x86_64.rpm https://download.rockylinux.org/vault/rocky/10.0/BaseOS/x86_64/os/Packages/k/kernel-modules-extra-6.12.0-55.14.1.el10_0.x86_64.rpm; modprobe ip_tables; echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utils iptables-services iptables-utils device-mapper-multipath; systemctl enable --now iscsid; yum update openssh -y; echo "ACTION==\"add|change\", KERNEL==\"sd[a-z]\", ATTR{queue/rotational}=\"0\", ATTR{queue/scheduler}=\"deadline\"" > /etc/udev/rules.d/99-mount.rules; udevadm control --reload' > /dev/null 2>&1
 info_ok
 }
 
@@ -60,6 +60,9 @@ vm.panic_on_oom=0
 vm.overcommit_memory=1
 kernel.panic=10
 kernel.panic_on_oops=1
+vm.compact_memory = 1
+vm.min_free_kbytes = 262144
+vm.extfrag_threshold = 100
 vm.max_map_count = 262144
 net.ipv4.ip_local_port_range=1024 65000
 net.core.somaxconn=10000
@@ -95,6 +98,8 @@ function portworx () {
 
 # from https://gist.github.com/clemenko/00dcbb344476aafda18dbae207952d71
 
+PX_OPR_VER=$(curl -sL https://dzver.rfed.io/json | jq -r .pxenterprise)
+
 # add volumes
 echo -e -n " - px - checking volumes"
 if [ "$(doctl compute volume list --no-header | wc -l | xargs )" != 0 ]; then echo -e -n " "$GREEN"- detected -";
@@ -102,23 +107,28 @@ if [ "$(doctl compute volume list --no-header | wc -l | xargs )" != 0 ]; then ec
 else
   echo -e -n " - adding"
   for num in 1 2 3; do
-    doctl compute volume-action attach $(doctl compute volume create port$num --region nyc1 --size 60GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep rke$num | awk '{print $1}') > /dev/null 2>&1
+    doctl compute volume-action attach $(doctl compute volume create kvdbport$num --region nyc1 --size 66GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep rke$num | awk '{print $1}') > /dev/null 2>&1
+    doctl compute volume-action attach $(doctl compute volume create dataport$num --region nyc1 --size 100GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep rke$num | awk '{print $1}') > /dev/null 2>&1
   done
 fi
 
 info_ok
 
+host_list=$(dolist | awk '{printf $3","}' | sed 's/,$//')
+pdsh -l root -w $host_list 'echo 0 >> /sys/block/sdb/queue/rotational; echo 0 >> /sys/block/sda/queue/rotational' > /dev/null 2>&1
+
 echo -e -n " - px - adding operator and storagecluster - "$RED"can take about 15 min"$NO_COLOR""
 # operator
 echo -e -n " ."
-kubectl apply -f 'https://install.portworx.com/3.5?comp=pxoperator&kbver=1.31.0&ns=portworx' > /dev/null 2>&1
+kubectl apply -f 'https://install.portworx.com/'$PX_OPR_VER'?comp=pxoperator&kbver=1.34.4&ns=portworx' > /dev/null 2>&1
 sleep 15
 echo -e -n " ."
 kubectl wait --for condition=containersready -n portworx pod --all > /dev/null 2>&1
 
 # StorageCluster spec
 echo -e -n " ."
-kubectl apply -f 'https://install.portworx.com/3.5?operator=true&mc=false&kbver=1.31.0&ns=portworx&b=true&iop=6&c=px-cluster1&stork=true&csi=true&mon=true&tel=false&st=k8s&promop=true&aut=false' > /dev/null 2>&1 
+kubectl apply -f 'https://install.portworx.com/'$PX_OPR_VER'?operator=true&mc=false&kbver=1.34.4&ns=portworx&b=true&iop=6&c=px-cluster1&stork=true&csi=true&mon=true&tel=false&st=k8s&promop=true&aut=false&dmthin=true&md=%2Fdev%2Fsda&s=%22%2Fdev%2Fsdb%22&iop=6' > /dev/null 2>&1 
+
 sleep 60
 echo -e -n " ."
 kubectl wait --for condition=Ready -n portworx pod --all --timeout=60000s   > /dev/null 2>&1
@@ -132,9 +142,9 @@ info_ok
 
 echo -e -n " - px - adding central"
 
-kubectl create ns px-central
+kubectl create ns px-central > /dev/null 2>&1 
 
-kubectl apply -f - <<EOF
+kubectl apply -f - << EOF > /dev/null 2>&1 
 apiVersion: v1
 kind: Secret
 metadata:

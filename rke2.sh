@@ -6,13 +6,13 @@
 # clemenko@gmail.com 
 
 ###################################
-# edit varsw
+# edit vars
 ###################################
 set -e
 num=3
 password=Pa22word
 zone=nyc1
-size=s-4vcpu-8gb 
+size=s-8vcpu-16gb #s-4vcpu-8gb 
 # s-8vcpu-16gb
 domain=rfed.io
 
@@ -46,7 +46,6 @@ build_list=""
 
 if [[ -n "$(dolist)" ]]; then
   fatal "Warning - cluster already detected..."
-  exit
 fi
 
 #rando list generation
@@ -84,7 +83,7 @@ if [[ "$image" = *"ubuntu"* ]]; then
   info_ok
 fi
 
-if [[ "$image" = *"centos"* || "$image" = *"rocky"* || "$image" = *"alma"* ]]; then centos_packages; fi
+if [[ "$image" = *"rocky"* ]]; then centos_packages; fi
 
 #kernel tuning from functions
 kernel
@@ -124,7 +123,7 @@ fi
 
 echo -e -n " - cluster active "
 sleep 10
-until [ $(kubectl get node|grep NotReady|wc -l) = 0 ]; do echo -e -n "."; sleep 2; done
+until [ $(kubectl get node|grep -w NotReady|wc -l) = 0 ]; do echo -e -n "."; sleep 2; done
 sleep 10
 info_ok
 }
