@@ -68,7 +68,6 @@ net.ipv4.ip_local_port_range=1024 65000
 net.core.somaxconn=10000
 net.ipv4.tcp_tw_reuse=1
 net.ipv4.tcp_fin_timeout=15
-net.core.somaxconn=4096
 net.core.netdev_max_backlog=4096
 net.core.rmem_max=536870912
 net.core.wmem_max=536870912
