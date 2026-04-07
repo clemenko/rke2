@@ -49,6 +49,15 @@ pdsh -l root -w $host_list 'dnf install -y https://download.rockylinux.org/vault
 info_ok
 }
 
+############################# os_packages ################################
+function harvester_centos_packages () {
+# adding centos packages.
+echo -e -n " - adding os packages"
+# future use dnf install kernel-modules-extra-$(uname -r) -y;
+pdsh -l root -w $host_list 'dnf install -y https://download.rockylinux.org/pub/rocky/10.1/BaseOS/x86_64/os/Packages/k/kernel-modules-6.12.0-124.8.1.el10_1.x86_64.rpm https://download.rockylinux.org/pub/rocky/10.1/BaseOS/x86_64/os/Packages/k/kernel-modules-extra-6.12.0-124.8.1.el10_1.x86_64.rpm; modprobe ip_tables; echo -e "[keyfile]\nunmanaged-devices=interface-name:cali*;interface-name:flannel*" > /etc/NetworkManager/conf.d/rke2-canal.conf; yum install -y nfs-utils cryptsetup iscsi-initiator-utils iptables-services iptables-utils device-mapper-multipath; systemctl enable --now iscsid; yum update openssh -y; echo "ACTION==\"add|change\", KERNEL==\"sd[a-z]\", ATTR{queue/rotational}=\"0\", ATTR{queue/scheduler}=\"deadline\"" > /etc/udev/rules.d/99-mount.rules; udevadm control --reload' > /dev/null 2>&1
+info_ok
+}
+
 ############################# kernel ################################
 function kernel () {
 #kernel tuning

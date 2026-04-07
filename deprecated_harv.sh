@@ -13,7 +13,7 @@ num=6
 export password=Pa22word
 export domain=rfed.io
 
-template=local
+template=default
 
 # rancher / k8s
 prefix=rke- # no rke k3s
@@ -31,6 +31,7 @@ command -v kubectl >/dev/null 2>&1 || { echo -e "$RED" " ** Kubectl was not foun
 
 #### doctl_list ####
 function harvlist () { harvester vm |grep -v NAME | grep Run | grep $prefix| awk '{print $1"  "$2"  "$6"  "$4"  "$5}'; }
+function dolist () { doctl compute droplet list --no-header|grep $prefix |sort -k 2; }
 
 source functions.sh
 
@@ -39,7 +40,7 @@ function up () {
 build_list=""
 # helm repo update > /dev/null 2>&1
 
-if [ ! -z $(harvlist) ]; then
+if [ -n "$(harvlist)" ]; then
   echo -e "$RED" "Warning - cluster already detected..." "$NO_COLOR"
   exit
 fi
@@ -49,8 +50,7 @@ echo -e -n " building vms -$build_list "
 harvester vm create --template $template --count $num rke > /dev/null 2>&1
 until [ $(harvlist | grep "192.168" | wc -l) = $num ]; do echo -e -n "." ; sleep 5; done
 
-
-echo read -n 1 -p Continue?
+read -n 1 -p Continue?
 
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
@@ -83,7 +83,7 @@ echo -e "$GREEN" "ok" "$NO_COLOR"
 
 sleep 10
 
-centos_packages
+harvester_centos_packages
 
 kernel
 
