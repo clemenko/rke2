@@ -401,19 +401,26 @@ function fleet () {
 function demo () {
   echo -e " demo-ing"
 
-  echo -e -n " - whoami ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; info_ok
+  echo -e -n " -$BLUE whoami.rfed.io";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/whoami.yml > /dev/null 2>&1; info_ok
 
-  echo -e -n " - flask ";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple_nginx.yml > /dev/null 2>&1; info_ok
+  echo -e -n " -$BLUE flask.rfed.io";kubectl apply -f https://raw.githubusercontent.com/clemenko/k8s_yaml/master/flask_simple_nginx.yml > /dev/null 2>&1; info_ok
   
-  echo -e -n " - minio"
+  echo -e -n " -$BLUE minio.rfed.io / s3.rfed.io |$NO_COLOR admin / $password"
   helm upgrade -i minio minio --repo https://charts.min.io -n minio --set rootUser=admin,rootPassword=$password --create-namespace --set mode=standalone --set resources.requests.memory=1Gi --set persistence.size=10Gi --set mode=standalone --set ingress.enabled=true --set ingress.hosts[0]=s3.$domain --set consoleIngress.enabled=true --set consoleIngress.hosts[0]=minio.$domain --set ingress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set consoleIngress.annotations."nginx\.ingress\.kubernetes\.io/proxy-body-size"="1024m" --set image.repository=cgr.dev/chainguard/minio --set image.tag=latest > /dev/null 2>&1
   info_ok
+
+  # add minio for px backup
+  export MC_INSECURE=TRUE
+  mc alias set minio https://s3.rfed.io admin Pa22word -q > /dev/null 2>&1
+  mc admin accesskey create minio admin --access-key myuseraccesskey --secret-key myusersecretkey -q > /dev/null 2>&1
+  mc mb minio/px-backup -q > /dev/null 2>&1
+  echo -e "   - s3.rfed.io / myuseraccesskey myusersecretkey"
 
 #  echo -e -n " - harbor"
 #  helm upgrade -i harbor harbor --repo https://helm.goharbor.io -n harbor --create-namespace --set expose.tls.certSource=secret --set expose.tls.secret.secretName=tls-ingress --set expose.tls.enabled=false --set expose.tls.auto.commonName=harbor.$domain --set expose.ingress.hosts.core=harbor.$domain --set persistence.enabled=false --set harborAdminPassword=$password --set externalURL=http://harbor.$domain --set notary.enabled=false > /dev/null 2>&1;
 #  info_ok
 
-  echo -e -n " - gitea"
+  echo -e -n " -$BLUE gitea.rfed.io |$NO_COLOR gitea / $password"
   helm upgrade -i gitea oci://registry-1.docker.io/giteacharts/gitea -n gitea --create-namespace --set gitea.admin.password=$password --set gitea.admin.username=gitea --set persistence.size=500Mi --set ingress.enabled=true --set ingress.hosts[0].host=git.$domain --set ingress.hosts[0].paths[0].path=/ --set ingress.hosts[0].paths[0].pathType=Prefix --set gitea.config.server.DOMAIN=git.$domain --set postgresql-ha.enabled=false --set valkey-cluster.enabled=false --set gitea.config.database.DB_TYPE=sqlite3 --set gitea.config.session.PROVIDER=memory  --set gitea.config.cache.ADAPTER=memory --set gitea.config.queue.TYPE=level > /dev/null 2>&1
 
   # mirror github
