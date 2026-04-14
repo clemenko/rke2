@@ -8,12 +8,12 @@
 # edit varsw
 ###################################
 set -e
-num=6
+num=20
 
 export password=Pa22word
 export domain=rfed.io
 
-template=default
+template=local
 
 # rancher / k8s
 prefix=rke- # no rke k3s
@@ -48,9 +48,9 @@ fi
 #build VMS
 echo -e -n " building vms -$build_list "
 harvester vm create --template $template --count $num rke > /dev/null 2>&1
-until [ $(harvlist | grep "192.168" | wc -l) = $num ]; do echo -e -n "." ; sleep 5; done
+until [ $(harvlist | grep "192.168.1" | wc -l) = $num ]; do echo -e -n "." ; sleep 5; done 
 
-read -n 1 -p Continue?
+#echo ""; read -n 1 -p "IPs show - Continue? "
 
 echo -e "$GREEN" "ok" "$NO_COLOR"
 
