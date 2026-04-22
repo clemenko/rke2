@@ -362,7 +362,7 @@ EOF
 
 ################################ longhorn ##############################
 function longhorn () {
-  echo -e -n  " - longhorn"
+  echo -e -n  " - longhorn "
 
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
 
