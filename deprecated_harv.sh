@@ -8,7 +8,7 @@
 # edit varsw
 ###################################
 set -e
-num=6
+num=4
 
 export password=Pa22word
 export domain=rfed.io
