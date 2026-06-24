@@ -83,7 +83,7 @@ echo -e "$GREEN" "ok" "$NO_COLOR"
 
 sleep 10
 
-harvester_centos_packages
+centos_packages
 
 kernel
 
