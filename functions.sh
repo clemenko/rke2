@@ -101,12 +101,11 @@ PX_OPR_VER=$(curl -sL https://dzver.rfed.io/json | jq -r .pxenterprise)
 # add volumes
 echo -e -n " - px - checking volumes"
 if [ "$(doctl compute volume list --no-header | wc -l | xargs )" != 0 ]; then echo -e -n " "$GREEN"- detected -";
-
 else
   echo -e -n " - adding"
-  for num in 1 2 3; do
-    doctl compute volume-action attach $(doctl compute volume create kvdbport$num --region nyc1 --size 66GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep rke$num | awk '{print $1}') > /dev/null 2>&1
-    doctl compute volume-action attach $(doctl compute volume create dataport$num --region nyc1 --size 100GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep rke$num | awk '{print $1}') > /dev/null 2>&1
+  for i in $(dolist | awk '{print $2}'); do 
+    doctl compute volume-action attach $(doctl compute volume create kvdb-px-$i --region nyc1 --size 66GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep $i | awk '{print $1}') > /dev/null 2>&1
+    doctl compute volume-action attach $(doctl compute volume create data-px-$i --region nyc1 --size 100GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep $i | awk '{print $1}') > /dev/null 2>&1
   done
 fi
 
@@ -355,6 +354,14 @@ function longhorn () {
   echo -e -n  " - longhorn "
 
   # to http basic auth --> https://longhorn.io/docs/1.4.1/deploy/accessing-the-ui/longhorn-ingress/
+
+#    echo -e -n " - adding volumes"
+#    for i in $(dolist | awk '{print $2}'); do 
+#      doctl compute volume-action attach $(doctl compute volume create longhorn-$i --region nyc1 --size 69GiB | grep -v ID| awk '#{print $1}') $(doctl compute droplet list | grep $i | awk '{print $1}')
+#    done
+
+#  host_list=$(dolist | awk '{printf $3","}' | sed 's/,$//')
+#  pdsh -l root -w $host_list 'parted -s /dev/sdc mklabel gpt mkpart primary 0% 100% && sleep 5 && mkfs.xfs -f /dev/sdc1 && sleep 2; mkdir /var/lib/longhorn && sleep 3; mount /dev/sdc1 /var/lib/longhorn' 
 
   helm upgrade -i longhorn longhorn --repo https://charts.longhorn.io -n longhorn-system --create-namespace --set ingress.enabled=true,ingress.host=longhorn.$domain  > /dev/null 2>&1 
   
