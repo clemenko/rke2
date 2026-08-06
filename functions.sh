@@ -404,7 +404,7 @@ function demo () {
 
   # https://github.com/rustfs/rustfs/tree/main/helm
   echo -e -n " -$BLUE rustfs.$domain |$NO_COLOR admin / $password"
-  helm upgrade -i rustfs rustfs --repo https://charts.rustfs.com/ -n rustfs --create-namespace --set ingress.className="nginx",mode.standalone.enabled="true",mode.distributed.enabled="false",storageclass.name=longhorn,storageclass.dataStorageSize=10Gi,storageclass.logStorageSize=500Mi,secret.rustfs.access_key=admin,secret.rustfs.secret_key=$password,ingress.hosts[0].host="rustfs.$domain",ingress.hosts[0].paths[0].path="/",ingress.hosts[0].paths[0].pathType="ImplementationSpecific" --wait > /dev/null 2>&1
+  helm upgrade -i rustfs rustfs --repo https://charts.rustfs.com/ -n rustfs --create-namespace --set mode.standalone.enabled="true",mode.distributed.enabled="false",storageclass.name=longhorn,storageclass.dataStorageSize=10Gi,storageclass.logStorageSize=500Mi,secret.rustfs.access_key=admin,secret.rustfs.secret_key=$password,ingress.hosts[0].host="rustfs.$domain",ingress.hosts[0].paths[0].path="/",ingress.hosts[0].paths[0].pathType="ImplementationSpecific" --wait > /dev/null 2>&1
   
   sleep 30
   # add bucket for px backup
