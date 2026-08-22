@@ -11,8 +11,8 @@
 set -e
 num=3
 password=Pa22word
-zone=nyc1
-size=s-8vcpu-16gb #s-4vcpu-8gb 
+zone=nyc3
+size=s-8vcpu-16gb  #s-4vcpu-8gb 
 domain=rfed.io
 
 #image=ubuntu-22-04-x64
@@ -82,7 +82,7 @@ if [[ "$image" = *"ubuntu"* ]]; then
   info_ok
 fi
 
-if [[ "$image" = *"rocky"* ]]; then centos_packages; fi
+if [[ "$image" = *"rocky"* ]]; then sleep 10; centos_packages; fi
 
 #kernel tuning from functions
 kernel

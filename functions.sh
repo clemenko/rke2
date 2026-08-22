@@ -104,8 +104,8 @@ if [ "$(doctl compute volume list --no-header | wc -l | xargs )" != 0 ]; then ec
 else
   echo -e -n " - adding"
   for i in $(dolist | awk '{print $2}'); do 
-    doctl compute volume-action attach $(doctl compute volume create kvdb-px-$i --region nyc1 --size 66GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep $i | awk '{print $1}') > /dev/null 2>&1
-    doctl compute volume-action attach $(doctl compute volume create data-px-$i --region nyc1 --size 100GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep $i | awk '{print $1}') > /dev/null 2>&1
+    doctl compute volume-action attach $(doctl compute volume create kvdb-px-$i --region $zone --size 66GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep $i | awk '{print $1}') > /dev/null 2>&1
+    doctl compute volume-action attach $(doctl compute volume create data-px-$i --region $zone --size 100GiB | grep -v ID| awk '{print $1}') $(doctl compute droplet list | grep $i | awk '{print $1}') > /dev/null 2>&1
   done
 fi
 
@@ -357,7 +357,7 @@ function longhorn () {
 
 #    echo -e -n " - adding volumes"
 #    for i in $(dolist | awk '{print $2}'); do 
-#      doctl compute volume-action attach $(doctl compute volume create longhorn-$i --region nyc1 --size 69GiB | grep -v ID| awk '#{print $1}') $(doctl compute droplet list | grep $i | awk '{print $1}')
+#      doctl compute volume-action attach $(doctl compute volume create longhorn-$i --region $zone --size 69GiB | grep -v ID| awk '#{print $1}') $(doctl compute droplet list | grep $i | awk '{print $1}')
 #    done
 
 #  host_list=$(dolist | awk '{printf $3","}' | sed 's/,$//')
