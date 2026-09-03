@@ -11,8 +11,8 @@
 set -e
 num=3
 password=Pa22word
-zone=nyc3
-size=s-8vcpu-16gb  #s-4vcpu-8gb 
+zone=nyc1
+size=s-8vcpu-16gb-amd #s-4vcpu-8gb 
 domain=rfed.io
 
 #image=ubuntu-22-04-x64
